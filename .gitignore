@@ -1,0 +1,15 @@
+.idea/
+Fixed_base_DDBD_forces.pyc
+Foundation_NL_millen_v2.pyc
+Foundation_NL_paolucci.pyc
+Maxim_DDBD_Frame_forces.pyc
+Maxim_DDBD_Wall_forces.pyc
+Moments_from_eq.pyc
+NZ_spectra.pyc
+Other_DDBD_forces.pyc
+__init__.pyc
+template_buildings.pyc
+ddbdpy.egg-info/
+eqstructure.egg-info/
+eqdes/__pycache__/
+eqdes/matplotlibrc

@@ -1,0 +1,40 @@
+
+%SDOF_eqs
+\begin{align}
+\Delta_D &= \frac{\sum{M_i \delta_{ls,i}^2}}{\sum{M_i \delta_{ls,i}}}\\
+M_{eff} &= \frac{\sum{M_i \delta_{ls,i}}}{\Delta_D}\\
+H_{eff} &=  \frac{\sum{M_i \delta_{ls,i} h_i}}{\sum{M_i \delta_{ls,i}}}
+\end{align}
+
+%theta_y
+\begin{align}
+\theta_y &=0.5\frac{f_{ye}}{E_s}\frac{L_b}{D_b}
+\end{align}
+
+%Delta_y
+\begin{align}
+\Delta_y &= \\theta_y*H_{eff}
+\end{align}
+
+% Moment equilibrium
+
+
+\subsection{Calculate element design forces}
+The element forces were determined based on the equilibrium method.
+The set inflection point on the first storey columns was used to determine the
+column base moments ($M_{col}_{0}$) \\ref{eq:Mbase}.
+The remaining overturning moment was then taken by the axial component ($T$) of the outer columns \\ref{eq:outerCol}.
+The axial load was then distributed into the beams ($V_{beam}$) in proportion to the
+storey shear force \ref{eq:Beam shear} however for ease of design and construction
+the storeys forces were calcualted in groups of XXXXX
+
+ \\ref{eq:groupbeam} and assuming an inflection point at half
+the beam length the beam moments were determined \ref{eq:beam moments}.
+\begin{align}
+\sum{M_{col}_{0}} &=0.6 V_{base} H_0 \label{eq:Mbase} \\
+ M_{overturning} &= \sum{F_i*h_i} \\\ \n T &= \\frac{M_{overturning}-
+ \sum{M_{col}_{0}}}{\sum{bay_{lengths}}} \label{eq:outerCol} \\
+   V_{beam}_{(i)} &=T \\frac{V_{i}}{\sum{V}} \label{eq:Beam shear} \\
+    V_{beam}_{(i \& i+1)} = T \\frac{\\frac{V_{i}+...+V_{i+ XXXX}}{' + str(BO.beam_group_size) + '}}{\sum{V}} \label{eq:groupbeam} \\
+     Moment_{beam}_i = 0.5 V_{beam}_i*Length_{span}
+     \end{align}
