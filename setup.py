@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(name='eqdes',
-      version='0.1.9',
+      version='0.1.10',
       description='This package contains solvers for structural design of buildings for earthquakes',
       url='',
       author='Maxim Millen',

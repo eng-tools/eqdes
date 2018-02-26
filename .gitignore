@@ -11,5 +11,5 @@ __init__.pyc
 template_buildings.pyc
 ddbdpy.egg-info/
 eqstructure.egg-info/
-eqdes/__pycache__/
 eqdes/matplotlibrc
+__pycache__/
