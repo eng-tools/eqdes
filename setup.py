@@ -1,7 +1,11 @@
 from setuptools import setup, find_packages
 
+about = {}
+with open("geofound/__about__.py") as fp:
+    exec(fp.read(), about)
+
 setup(name='eqdes',
-      version='0.1.11',
+      version=about['__version__'],
       description='This package contains solvers for structural design of buildings for earthquakes',
       url='',
       author='Maxim Millen',
@@ -17,8 +21,8 @@ setup(name='eqdes',
       packages=find_packages(exclude=['contrib', 'docs', 'tests']),
       install_requires=[
           "numpy",
-          "sfsimodels>=0.4.14",
-          "geofound"
+          "sfsimodels>=0.5.19",
+          "geofound>=0.4.0"
       ],
       # List additional groups of dependencies here (e.g. development
       # dependencies). You can install these using the following syntax,

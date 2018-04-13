@@ -1,3 +1,6 @@
 numpy
 sfsimodels>=0.4.14
 geofound
+
+# testing
+pytest

@@ -36,17 +36,22 @@ def getTeff(Z_Haz, R_Haz, N_Haz, Soil_type, Disp_eff, **kwargs):
     return T_eff
 
 
-def calculate_Z(D_C, Soil_type):
+def calculate_z(corner_disp, site_class_nzs):
     '''
-    calculates the value of Z for design for a given D_C.
-    NOTE: D_C must be at 3s
+    calculates the value of Z for design for a given corner_disp.
+    NOTE: corner_disp must be at 3s
     '''
-    if Soil_type == 'C': i = 0
-    if Soil_type == 'D': i = 1
-    if Soil_type == 'E': i = 2
+    if site_class_nzs == 'C':
+        i = 0
+    elif site_class_nzs == 'D':
+        i = 1
+    elif site_class_nzs == 'E':
+        i = 2
+    else:
+        raise KeyError("site_class_nzs must be 'C', 'D' or 'E'.")
 
-    NZS_val = [3.96, 6.42, 9.96]
-    Z = D_C * 4 * np.pi ** 2 / NZS_val[i] / 9.8
+    nzs_val = [3.96, 6.42, 9.96]
+    Z = corner_disp * 4 * np.pi ** 2 / nzs_val[i] / 9.8
     return Z
 
 
