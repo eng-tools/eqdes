@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 about = {}
-with open("geofound/__about__.py") as fp:
+with open("eqdes/__about__.py") as fp:
     exec(fp.read(), about)
 
 setup(name='eqdes',
