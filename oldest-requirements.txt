@@ -1,0 +1,6 @@
+numpy
+sfsimodels==0.5.19
+geofound==0.4.0
+
+# testing
+pytest
