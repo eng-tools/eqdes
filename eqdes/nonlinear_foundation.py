@@ -212,7 +212,3 @@ def system_reduction_factor(delta_ss, delta_frot, delta_fshear, eta_ss, eta_frot
 
 def bearing_capacity(f_area, soil_q):
     return f_area * soil_q
-
-
-
-

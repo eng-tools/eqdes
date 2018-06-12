@@ -11,10 +11,9 @@ from tests.checking_tools import isclose
 
 def test_ddbd_frame_fixed_small():
 
-    fb = dm.FrameBuilding()
     hz = dm.Hazard()
     ml.load_hazard_test_data(hz)
-    ml.load_large_frame_building_test_data(fb)
+    fb = ml.initialise_frame_building_test_data()
     frame_ddbd = ddbd.dbd_frame(fb, hz)
 
     assert isclose(frame_ddbd.delta_d, 0.2400, rel_tol=0.001), frame_ddbd.delta_d
@@ -33,12 +32,11 @@ def test_ddbd_frame_consistent():
     :return:
     """
 
-    fb = dm.FrameBuilding()
+    fb = ml.initialise_frame_building_test_data()
     hz = dm.Hazard()
     sl = dm.Soil()
     fd = dm.RaftFoundation()
     ml.load_hazard_test_data(hz)
-    ml.load_large_frame_building_test_data(fb)
     ml.load_soil_test_data(sl)
     ml.load_raft_foundation_test_data(fd)
     frame_ddbd = ddbd.dbd_frame(fb, hz)
@@ -58,15 +56,15 @@ def test_ddbd_frame_consistent():
 
 
 def test_ddbd_frame_fixed_large():
-
-    fb = dm.FrameBuilding()
+    n_storeys = 5
+    n_bays = 1
+    fb = dm.FrameBuilding(n_storeys, n_bays)
     hz = dm.Hazard()
 
-    n_storeys = 5
     fb.interstorey_heights = 3.6 * np.ones(n_storeys)
-    n_bays = 1
+
     fb.bay_lengths = 6.0 * np.ones(n_bays)
-    fb.beam_depth = .6 * np.ones(n_storeys)  # m      #varies vertically
+    fb.set_beam_prop("depth", .6 * np.ones(n_bays))  # m      #varies vertically
 
     hz.z_factor = 0.3
     hz.r_factor = 1.0
@@ -90,8 +88,9 @@ def test_ddbd_frame_fixed_large():
 
 
 def test_dbd_sfsi_frame():
-    fb = dm.FrameBuilding()
-    fb.n_bays = 1
+    n_storeys = 5
+    n_bays = 1
+    fb = dm.FrameBuilding(n_storeys, n_bays)
     fb.raft_height = 0  # m
     fb.footing_mass = 0
     fb.raft_foundation = 0
@@ -168,11 +167,10 @@ def to_be_test_ddbd_sfsi_wall_from_millen_pdf_paper_2018():
 
 def test_ddbd_wall_fixed():
 
-    fb = dm.WallBuilding()
     hz = dm.Hazard()
     ml.load_hazard_test_data(hz)
-    ml.load_wall_building_test_data(fb)
-    wall_dbd = ddbd.wall(fb, hz)
+    wb = ml.initialise_wall_building_test_data()
+    wall_dbd = ddbd.wall(wb, hz)
 
     assert isclose(wall_dbd.delta_d, 0.339295, rel_tol=0.001), wall_dbd.delta_d
     assert isclose(wall_dbd.mass_eff, 59429.632, rel_tol=0.001), wall_dbd.mass_eff

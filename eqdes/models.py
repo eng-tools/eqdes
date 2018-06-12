@@ -33,6 +33,9 @@ class FrameBuilding(sm.FrameBuilding):
                       "n_gravity_frames"
                       ]
 
+    def __init__(self, n_storeys, n_bays):
+        super(FrameBuilding, self).__init__(n_storeys, n_bays)  # run parent class initialiser function
+
     def to_table(self, table_name="fb-table"):
         para = mo.output_to_table(self, olist="all")
         para += mo.output_to_table(self.hz)
@@ -110,7 +113,7 @@ class DesignedFrame(FrameBuilding):
     storey_forces = 0.0
 
     def __init__(self, fb, hz, verbose=0):
-        super(DesignedFrame, self).__init__()  # run parent class initialiser function
+        super(DesignedFrame, self).__init__(fb.n_storeys, fb.n_bays)  # run parent class initialiser function
         self.__dict__.update(fb.__dict__)
         self.hz.__dict__.update(hz.__dict__)
         self.verbose = verbose
@@ -153,7 +156,7 @@ class DesignedWall(WallBuilding):
     storey_forces = 0.0
 
     def __init__(self, wb, hz, verbose=0):
-        super(DesignedWall, self).__init__()  # run parent class initialiser function
+        super(DesignedWall, self).__init__(wb.n_storeys)  # run parent class initialiser function
         self.__dict__.update(wb.__dict__)
         self.hz.__dict__.update(hz.__dict__)
         self.verbose = verbose
@@ -166,8 +169,8 @@ class DesignedWall(WallBuilding):
     def inputs(self):
         input_list = super(DesignedWall, self).inputs
         new_inputs = [
-        "method",
-    ]
+            "method",
+        ]
         return input_list + new_inputs
 
     def static_dbd_values(self):

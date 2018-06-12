@@ -1,10 +1,12 @@
 
 import numpy as np
+from eqdes import models as em
 
 
 def load_hazard_test_data(hz):
     """
     Sample data for the Hazard object
+
     :param hz: sfsimodels.models.Hazard Object
     :return:
     """
@@ -33,65 +35,57 @@ def load_hazard_test_data(hz):
 #     bd.storey_masses = np.array([masses])  # kg
 
 
-def load_large_building_test_data(bd):
+def initialise_frame_building_test_data():
     """
-    Sample data for the Building object
-    :param bd:
+    Sample data for the FrameBuilding object
+
+    :param fb:
     :return:
     """
     number_of_storeys = 6
+    number_of_bays = 3
+    fb = em.FrameBuilding(n_storeys=number_of_storeys, n_bays=number_of_bays)
     interstorey_height = 3.4  # m
     masses = 40.0e3  # kg
 
-    bd.interstorey_heights = interstorey_height * np.ones(number_of_storeys)
-    bd.floor_length = 18.0  # m
-    bd.floor_width = 16.0  # m
-    bd.storey_masses = masses * np.ones(number_of_storeys)  # kg
-
-
-def load_frame_building_test_data(fb):
-    """
-    Sample data for the FrameBuilding object
-    :param fb:
-    :return:
-    """
-    load_large_building_test_data(fb)
+    fb.interstorey_heights = interstorey_height * np.ones(number_of_storeys)
+    fb.floor_length = 18.0  # m
+    fb.floor_width = 16.0  # m
+    fb.storey_masses = masses * np.ones(number_of_storeys)  # kg
 
     fb.bay_lengths = [6., 6.0, 6.0]
-    fb.beam_depths = [.5]
+    fb.set_beam_prop("depth", [.5, .5, .5])
     fb.n_seismic_frames = 3
     fb.n_gravity_frames = 0
+    return fb
 
 
-def load_wall_building_test_data(fb):
+def initialise_wall_building_test_data():
     """
     Sample data for the WallBuilding object
-    :param fb:
-    :return:
+
+    :return: WallBuilding
     """
-    load_large_building_test_data(fb)
+    number_of_storeys = 6
+    wb = em.WallBuilding(number_of_storeys)
 
-    fb.n_walls = 4
-    fb.wall_depth = 2.0
+    interstorey_height = 3.4  # m
+    masses = 40.0e3  # kg
 
+    wb.interstorey_heights = interstorey_height * np.ones(number_of_storeys)
+    wb.floor_length = 18.0  # m
+    wb.floor_width = 16.0  # m
+    wb.storey_masses = masses * np.ones(number_of_storeys)  # kg
 
-def load_large_frame_building_test_data(fb):
-    """
-    Sample data for the FrameBuilding object
-    :param fb:
-    :return:
-    """
-    load_large_building_test_data(fb)
-
-    fb.bay_lengths = [6., 6.0, 6.0]
-    fb.beam_depths = [.5]
-    fb.n_seismic_frames = 3
-    fb.n_gravity_frames = 0
+    wb.n_walls = 4
+    wb.wall_depth = 2.0
+    return wb
 
 
 def load_soil_test_data(sl):
     """
     Sample data for the Soil object
+
     :param sp: Soil Object
     :return:
     """
@@ -107,6 +101,7 @@ def load_soil_test_data(sl):
 def load_raft_foundation_test_data(fd):
     """
     Sample data for the Foundation object
+
     :param fd: Foundation Object
     :return:
     """
