@@ -7,6 +7,7 @@ from eqdes import nonlinear_foundation as nf
 from eqdes import ddbd_tools as dt
 from eqdes.extensions.exceptions import DesignError
 
+
 class Soil(sm.Soil):
     required_inputs = ["g_mod",
                       "phi",
