@@ -19,20 +19,10 @@ def load_hazard_test_data(hz):
     hz.corner_acc_factor = 0.55
 
 
-# def load_building_test_data(bd):
-#     """
-#     Sample data for the Building object
-#     :param bd:
-#     :return:
-#     """
-#     number_of_storeys = 8
-#     interstorey_height = 3.4  # m
-#     masses = 40.0e3  # kg
-#
-#     bd.interstorey_heights = interstorey_height * np.ones(number_of_storeys)
-#     bd.floor_length = 18.0  # m
-#     bd.floor_width = 16.0  # m
-#     bd.storey_masses = np.array([masses])  # kg
+def initialise_hazard_test_data():
+    hz = em.Hazard()
+    load_hazard_test_data(hz)
+    return hz
 
 
 def initialise_frame_building_test_data():
@@ -98,6 +88,12 @@ def load_soil_test_data(sl):
     sl.poissons_ratio = 0.22
 
 
+def initialise_soil_test_data():
+    sl = em.Soil()
+    load_soil_test_data(sl)
+    return sl
+
+
 def load_raft_foundation_test_data(fd):
     """
     Sample data for the Foundation object
@@ -110,3 +106,9 @@ def load_raft_foundation_test_data(fd):
     fd.length = 18.0  # m
     fd.depth = 0.0  # m
     fd.mass = 0.0
+
+
+def initialise_foundation_test_data():
+    fd = em.RaftFoundation()
+    load_raft_foundation_test_data(fd)
+    return fd

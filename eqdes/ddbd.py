@@ -1,7 +1,6 @@
 
 import numpy as np
 
-from sfsimodels import loader as ml
 from sfsimodels import output as mo
 
 from eqdes import models as sm
@@ -52,6 +51,7 @@ def dbd_frame(fb, hz, design_drift=0.02, **kwargs):
 def wall(wb, hz, design_drift=0.025, **kwargs):
     """
     Displacement-based design of a concrete wall.
+
     :param wb: WallBuilding object
     :param hz: Hazard Object
     :param design_drift: Design drift
@@ -227,33 +227,30 @@ def dbd_sfsi_frame(fb, hz, sl, fd, deisgn_drift=0.02, found_rot=0.00001, found_r
 
 
 def run_frame_fixed():
-    fb = sm.FrameBuilding()
+    from tests import models_for_testing as ml
     hz = sm.Hazard()
-    hz = ml.load_hazard_sample_data(hz)
-    ml.load_frame_building_sample_data(fb)
+    ml.load_hazard_test_data(hz)
+    fb = ml.initialise_frame_building_test_data()
     designed_frame = dbd_frame(fb, hz)
-    print(designed_frame.n_seismic_frames)
+    # print(designed_frame.n_seismic_frames)
     para = [mo.output_to_table(hz)]
     para.append(mo.output_to_table(fb))
-    para.append(mo.add_table_ends(para))
+    para = mo.add_table_ends("".join(para))
     print("".join(para))
 
     for item in hz.__dict__:
         print(item, hz.__dict__[item])
 
 
-
-
-
 def run_frame_sfsi():
-    fb = sm.FrameBuilding()
+    from tests import models_for_testing as ml
+    fb = ml.initialise_frame_building_test_data()
     hz = sm.Hazard()
     sp = sm.Soil()
     fd = sm.RaftFoundation()
-    ml.load_hazard_sample_data(hz)
-    ml.load_frame_building_sample_data(fb)
-    ml.load_soil_sample_data(sp)
-    ml.load_foundation_sample_data(fd)
+    ml.load_hazard_test_data(hz)
+    ml.load_soil_test_data(sp)
+    ml.load_raft_foundation_test_data(fd)
     designed_frame = dbd_sfsi_frame(fb, hz, sp, fd, verbose=0)
     para = mo.output_to_table(designed_frame, olist="all")
     para += mo.output_to_table(fd)

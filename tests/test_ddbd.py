@@ -165,6 +165,59 @@ def to_be_test_ddbd_sfsi_wall_from_millen_pdf_paper_2018():
     sl.Conc_Poissons_ratio = 0.18
 
 
+def test_case_study_wall_pbd_wall():
+    def create(save=0, show=1):
+        n_storeys = 6
+        wb = dm.WallBuilding(n_storeys)
+        wb.wall_width = 0.3  # m
+        wb.wall_depth = 3.4  # m
+        wb.interstorey_heights = 3.4 * np.ones(n_storeys)  # m
+        wb.n_walls = 1
+        wb.floor_length = 20 / 2  # m
+        wb.floor_width = 12 / 2  # m
+        g_load = 6000.  # Pa
+        q_load = 3000.  # Pa
+        eq_load_factor = 0.4
+        floor_pressure = g_load + eq_load_factor * q_load
+        wb.set_storey_masses_by_pressure(floor_pressure)
+
+        fd = dm.RaftFoundation()
+        fd.height = 1.3
+        fd.length = 5.6  # m # from HDF
+        fd.width = 2.25  # m # from HDF
+        fd.depth = 0.0  # TODO: check this
+        fd.mass = 0.0
+
+        # soil properties from HDF
+        sl = dm.Soil()
+        sl.g_mod = 40e6  # Pa
+        sl.poissons_ratio = 0.3
+        sl.phi = 36.0  # degrees
+        # sl.phi_r = np.radians(sl.phi)
+        sl.cohesion = 0.0
+        sl.unit_dry_weight = 18000.  # TODO: check this
+
+        # hazard
+        hz = dm.Hazard()
+        hz.z_factor = 0.4  # Hazard factor
+        hz.r_factor = 1.0  # Return period factor
+        hz.n_factor = 1.0  # Near-fault factor
+        hz.magnitude = 7.5  # Magnitude of earthquake
+        hz.corner_period = 3.0  # s
+        hz.corner_acc_factor = 0.4
+
+        n_wall_eq = np.sum(wb.storey_masses) / wb.n_walls * 9.8
+        n_cap_from_hdf = 12.1e6  # N
+        n_wall_eq_from_hdf = 2.31e6  # N
+
+        # n_from_input_file = (4.0e2 + 1.905e3) * 1e3
+        alpha = 4.
+
+        # dw = dbd.wall(wb, hz, design_drift=0.025)
+        dw = ddbd.wall(wb, hz, sl, fd, design_drift=0.025)
+        print(dw.delta_d)
+
+
 def test_ddbd_wall_fixed():
 
     hz = dm.Hazard()

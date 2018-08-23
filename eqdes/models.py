@@ -123,14 +123,8 @@ class DesignedFrame(FrameBuilding):
         self.storey_mass_p_frame = self.storey_masses / self.n_seismic_frames
         self.storey_forces = np.zeros((1, len(self.storey_masses)))
         self.hm_factor = dt.cal_higher_mode_factor(self.n_storeys, btype="frame")
-
-    @property
-    def inputs(self):
-        input_list = super(DesignedFrame, self).inputs
-        new_inputs = [
-        "method",
-    ]
-        return input_list + new_inputs
+        self._extra_class_variables = ["method"]
+        self.inputs += self._extra_class_variables
 
 
 class DesignedWall(WallBuilding):
@@ -164,14 +158,8 @@ class DesignedWall(WallBuilding):
         self.storey_mass_p_wall = self.storey_masses / self.n_walls
         self.storey_forces = np.zeros((1, len(self.storey_masses)))
         self.hm_factor = dt.cal_higher_mode_factor(self.n_storeys, btype="wall")
-
-    @property
-    def inputs(self):
-        input_list = super(DesignedWall, self).inputs
-        new_inputs = [
-            "method",
-        ]
-        return input_list + new_inputs
+        self._extra_class_variables = ["method"]
+        self.inputs += self._extra_class_variables
 
     def static_dbd_values(self):
         # Material strain limits check
@@ -216,14 +204,8 @@ class AssessedFrame(FrameBuilding):
         self.storey_mass_p_frame = self.storey_masses / self.n_seismic_frames
         self.storey_forces = np.zeros((1, len(self.storey_masses)))
         self.hm_factor = dt.cal_higher_mode_factor(self.n_storeys, btype="frame")
-
-    @property
-    def inputs(self):
-        input_list = super(AssessedFrame, self).inputs
-        new_inputs = [
-        "method",
-    ]
-        return input_list + new_inputs
+        self._extra_class_variables = ["method"]
+        self.inputs += self._extra_class_variables
 
 
 class DesignedSFSIFrame(DesignedFrame):
@@ -258,6 +240,55 @@ class DesignedSFSIFrame(DesignedFrame):
         bearing_capacity = nf.bearing_capacity(self.fd.area, soil_q)
         weight_per_frame = sum(self.storey_masses) / (self.n_seismic_frames + self.n_gravity_frames) * self.g
         self.axial_load_ratio = bearing_capacity / self.total_weight
+
+        self.theta_pseudo_up = nf.calculate_pseudo_uplift_angle(self.total_weight, self.fd.width, self.k_f_0,
+                                                                self.axial_load_ratio, self.alpha, self.zeta)
+
+    def to_table(self, table_name="df-table"):
+        para = mo.output_to_table(self, olist="all")
+        para += mo.output_to_table(self.fd)
+        para += mo.output_to_table(self.sl)
+        para += mo.output_to_table(self.hz)
+        para = mo.add_table_ends(para,'latex', table_name, table_name)
+        return para
+
+#
+# class Soil(object):
+#     pass
+
+
+class DesignedSFSIWall(DesignedWall):
+
+    sl = sm.Soil()
+    fd = sm.RaftFoundation()
+    total_weight = 0.0
+    theta_f = 0.0
+    axial_load_ratio = 0.0
+    bearing_capacity = 0.0
+    theta_pseudo_up = 0.0
+
+    def __init__(self, wb, hz, sl, fd):
+        super(DesignedSFSIWall, self).__init__(wb, hz)  # run parent class initialiser function
+        self.sl.__dict__.update(sl.__dict__)
+        self.fd.__dict__.update(fd.__dict__)
+        self.k_f0_shear = geofound.shear_stiffness(self.fd.width, self.fd.length, self.sl.g_mod, self.sl.poissons_ratio)
+
+        if self.fd.ftype == "raft":
+            self.k_f_0 = geofound.rotational_stiffness(self.sl, self.fd)
+            self.alpha = 4.0
+        else:
+            self.k_f_0 = geofound.rotational_stiffness(self.sl, self.fd)
+            self.alpha = 3.0
+
+        self.zeta = 1.5
+
+    def static_values(self):
+        self.total_weight = (sum(self.storey_masses) + self.fd.mass) * self.g
+        soil_q = geofound.capacity_salgado_2008(sl=self.sl, fd=self.fd)
+
+        # Deal with both raft and pad foundations
+        self.bearing_capacity = nf.bearing_capacity(self.fd.area, soil_q)
+        self.axial_load_ratio = self.bearing_capacity / self.total_weight
 
         self.theta_pseudo_up = nf.calculate_pseudo_uplift_angle(self.total_weight, self.fd.width, self.k_f_0,
                                                                 self.axial_load_ratio, self.alpha, self.zeta)
