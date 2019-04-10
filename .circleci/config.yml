@@ -14,8 +14,8 @@ jobs:
           command: |
             python3 -m venv venv
             . venv/bin/activate
-            pip install -r oldest-requirements.txt
-            pip install -r deploy-requirements.txt
+            pip install -r requirements-oldest.txt
+            pip install -r requirements-deploy.txt
       - save_cache:
           key: v1-dependency-cache-{{ checksum "setup.py" }}-{{ checksum "eqdes/__about__.py" }}
           paths:
@@ -58,7 +58,7 @@ jobs:
             python3 -m venv venv
             . venv/bin/activate
             pip install -r requirements.txt
-            pip install -r deploy-requirements.txt
+            pip install -r requirements-deploy.txt
 
       - run:
           name: init .pypirc
