@@ -37,11 +37,11 @@ class FrameBuilding(sm.FrameBuilding):
     def __init__(self, n_storeys, n_bays):
         super(FrameBuilding, self).__init__(n_storeys, n_bays)  # run parent class initialiser function
 
-    def to_table(self, table_name="fb-table"):
-        para = mo.output_to_table(self, olist="all")
-        para += mo.output_to_table(self.hz)
-        para = mo.add_table_ends(para, 'latex', table_name, table_name)
-        return para
+
+def to_table(obj, table_name="fb-table"):
+    para = mo.output_to_table(obj, olist="all")
+    para = mo.add_table_ends(para, 'latex', table_name, table_name)
+    return para
 
 
 class WallBuilding(sm.WallBuilding):
@@ -53,11 +53,6 @@ class WallBuilding(sm.WallBuilding):
         "n_walls",
         "wall_depth"
     ]
-
-    def to_table(self, table_name="wb-table"):
-        para = mo.output_to_table(self, olist="all")
-        para = mo.add_table_ends(para, 'latex', table_name, table_name)
-        return para
 
 
 class Concrete(sm.material.Concrete):
@@ -245,13 +240,14 @@ class DesignedSFSIFrame(DesignedFrame):
         self.theta_pseudo_up = nf.calculate_pseudo_uplift_angle(self.total_weight, self.fd.width, self.k_f_0,
                                                                 self.axial_load_ratio, self.alpha, self.zeta)
 
-    def to_table(self, table_name="df-table"):
-        para = mo.output_to_table(self, olist="all")
-        para += mo.output_to_table(self.fd)
-        para += mo.output_to_table(self.sl)
-        para += mo.output_to_table(self.hz)
-        para = mo.add_table_ends(para,'latex', table_name, table_name)
-        return para
+
+def designed_frame_table(fb, table_name="df-table"):
+    para = mo.output_to_table(fb, olist="all")
+    para += mo.output_to_table(fb.fd)
+    para += mo.output_to_table(fb.sl)
+    para += mo.output_to_table(fb.hz)
+    para = mo.add_table_ends(para, 'latex', table_name, table_name)
+    return para
 
 #
 # class Soil(object):
@@ -294,13 +290,14 @@ class DesignedSFSIWall(DesignedWall):
         self.theta_pseudo_up = nf.calculate_pseudo_uplift_angle(self.total_weight, self.fd.width, self.k_f_0,
                                                                 self.axial_load_ratio, self.alpha, self.zeta)
 
-    def to_table(self, table_name="df-table"):
-        para = mo.output_to_table(self, olist="all")
-        para += mo.output_to_table(self.fd)
-        para += mo.output_to_table(self.sl)
-        para += mo.output_to_table(self.hz)
-        para = mo.add_table_ends(para,'latex', table_name, table_name)
-        return para
+
+def design_wall_to_table(dw, table_name="df-table"):
+    para = mo.output_to_table(dw, olist="all")
+    para += mo.output_to_table(dw.fd)
+    para += mo.output_to_table(dw.sl)
+    para += mo.output_to_table(dw.hz)
+    para = mo.add_table_ends(para, 'latex', table_name, table_name)
+    return para
 
 
 class AssessedSFSIFrame(AssessedFrame):
@@ -346,10 +343,10 @@ class AssessedSFSIFrame(AssessedFrame):
         self.theta_pseudo_up = nf.calculate_pseudo_uplift_angle(self.total_weight, self.fd.width, self.k_f_0,
                                                                 self.axial_load_ratio, self.alpha, self.zeta)
 
-    def to_table(self, table_name="af-table"):
-        para = mo.output_to_table(self, olist="all")
-        para += mo.output_to_table(self.fd, prefix="Foundation ")
-        para += mo.output_to_table(self.sl, prefix="Soil ")
-        para += mo.output_to_table(self.hz, prefix="Hazard ")
-        para = mo.add_table_ends(para, 'latex', table_name, table_name)
-        return para
+def to_table(aw, table_name="af-table"):
+    para = mo.output_to_table(aw, olist="all")
+    para += mo.output_to_table(aw.fd, prefix="Foundation ")
+    para += mo.output_to_table(aw.sl, prefix="Soil ")
+    para += mo.output_to_table(aw.hz, prefix="Hazard ")
+    para = mo.add_table_ends(para, 'latex', table_name, table_name)
+    return para
