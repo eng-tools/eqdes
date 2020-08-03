@@ -262,6 +262,6 @@ def run_frame_sfsi():
 
 
 if __name__ == '__main__':
-    # run_frame_sfsi()
+    run_frame_sfsi()
     # run_frame_dba_fixed()
-    run_frame_fixed()
+    # run_frame_fixed()

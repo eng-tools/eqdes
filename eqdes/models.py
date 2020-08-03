@@ -190,7 +190,8 @@ class AssessedFrame(FrameBuilding):
     storey_forces = 0.0
 
     def __init__(self, fb, hz, verbose=0):
-        super(AssessedFrame, self).__init__()  # run parent class initialiser function
+        super(AssessedFrame, self).__init__(n_bays=fb.n_bays, n_storeys=fb.n_storeys)  # run parent class initialiser function
+        self.concrete = fb.concrete
         self.__dict__.update(fb.__dict__)
         self.hz.__dict__.update(hz.__dict__)
         self.verbose = verbose
@@ -213,28 +214,32 @@ class DesignedSFSIFrame(DesignedFrame):
     axial_load_ratio = 0.0
     theta_pseudo_up = 0.0
 
-    def __init__(self, fb, hz, sl, fd):
+    def __init__(self, fb, hz, sl, fd, ip_axis='length', horz2vert_mass=None):
         super(DesignedSFSIFrame, self).__init__(fb, hz)  # run parent class initialiser function
         self.sl.__dict__.update(sl.__dict__)
-        self.fd.__dict__.update(fd.__dict__)
-        self.k_f0_shear = geofound.shear_stiffness(self.fd.width, self.fd.length, self.sl.g_mod, self.sl.poissons_ratio)
-
+        # self.fd.__dict__.update(fd.__dict__)
+        self.fd = fd.deepcopy()
+        self.k_f0_shear = geofound.stiffness.calc_shear_via_gazetas_1991(self.sl, self.fd, ip_axis=ip_axis)
+        self.k_f_0 = geofound.stiffness.calc_rotational_via_gazetas_1991(self.sl, self.fd, ip_axis=ip_axis)
         if self.fd.ftype == "raft":
-            self.k_f_0 = geofound.rotational_stiffness(self.sl, self.fd)
             self.alpha = 4.0
         else:
-            self.k_f_0 = geofound.rotational_stiffness(self.sl, self.fd)
             self.alpha = 3.0
 
         self.zeta = 1.5
+        if horz2vert_mass is not None:
+            self.horz2vert_mass = horz2vert_mass
 
     def static_values(self):
-        self.total_weight = (sum(self.storey_masses) + self.fd.mass) * self.g
-        soil_q = geofound.capacity_salgado_2008(sl=self.sl, fd=self.fd)
+        self.total_weight = self.horz2vert_mass * (sum(self.storey_masses) + self.fd.mass) * self.g
+        if hasattr(self.fd, 'pad'):
+            self.soil_q = geofound.capacity_salgado_2008(sl=self.sl, fd=self.fd.pad)
+        else:
+            self.soil_q = geofound.capacity_salgado_2008(sl=self.sl, fd=self.fd)
 
         # Deal with both raft and pad foundations
-        bearing_capacity = nf.bearing_capacity(self.fd.area, soil_q)
-        weight_per_frame = sum(self.storey_masses) / (self.n_seismic_frames + self.n_gravity_frames) * self.g
+        bearing_capacity = nf.bearing_capacity(self.fd.area, self.soil_q)
+        weight_per_frame = self.horz2vert_mass * sum(self.storey_masses) / (self.n_seismic_frames + self.n_gravity_frames) * self.g
         self.axial_load_ratio = bearing_capacity / self.total_weight
 
         self.theta_pseudo_up = nf.calculate_pseudo_uplift_angle(self.total_weight, self.fd.width, self.k_f_0,
@@ -308,7 +313,7 @@ class AssessedSFSIFrame(AssessedFrame):
     axial_load_ratio = 0.0
     theta_pseudo_up = 0.0
 
-    def __init__(self, fb, hz, sl, fd):
+    def __init__(self, fb, hz, sl, fd, ip_axis='length', horz2vert_mass=None):
         super(AssessedSFSIFrame, self).__init__(fb, hz)  # run parent class initialiser function
         self.sl.__dict__.update(sl.__dict__)
         if fd.ftype == "raft":
@@ -316,22 +321,31 @@ class AssessedSFSIFrame(AssessedFrame):
         if fd.ftype == "pad":
             self.fd = sm.PadFoundation()
         self.fd.__dict__.update(fd.__dict__)
-        self.k_f0_shear = geofound.shear_stiffness(self.fd.width, self.fd.length, self.sl.g_mod, self.sl.poissons_ratio)
-
+        self.k_f0_shear = geofound.stiffness.calc_shear_via_gazetas_1991(self.sl, self.fd, ip_axis=ip_axis)
+        self.k_f_0 = geofound.stiffness.calc_rotational_via_gazetas_1991(self.sl, self.fd, ip_axis=ip_axis)
         if self.fd.ftype == "raft":
-            self.k_f_0 = geofound.rotational_stiffness(self.sl, self.fd)
             #self.k_f_0 = nf.rotational_stiffness(self.fd.width, self.fd.length, self.sl.g_mod, self.sl.poissons_ratio)
             self.alpha = 4.0
         else:
-            self.k_f_0 = geofound.rotational_stiffness(self.sl, self.fd)
             #self.k_f_0 = nf.rotational_stiffness(self.fd.width, self.fd.length, self.sl.g_mod, self.sl.poissons_ratio) / 2
             self.alpha = 3.0
 
         self.zeta = 1.5
+        if horz2vert_mass is not None:
+            self.horz2vert_mass = horz2vert_mass
+
 
     def static_values(self):
-        self.total_weight = (sum(self.storey_masses) + self.fd.mass) * self.g
-        self.soil_q = geofound.capacity_salgado_2008(sl=self.sl, fd=self.fd)
+        self.total_weight = (sum(self.storey_masses) + self.fd.mass) * self.g * self.horz2vert_mass
+        if hasattr(self.fd, 'pad_length'):
+            pad = sm.PadFoundation()
+            pad.length = self.fd.pad_length
+            pad.width = self.fd.pad_width
+            pad.height = self.fd.height
+            pad.depth = self.fd.depth
+            self.soil_q = geofound.capacity_salgado_2008(sl=self.sl, fd=pad)
+        else:
+            self.soil_q = geofound.capacity_salgado_2008(sl=self.sl, fd=self.fd)
         # Add new function to foundations, bearing_capacity_from_sfsimodels,
         # Deal with both raft and pad foundations
         bearing_capacity = nf.bearing_capacity(self.fd.area, self.soil_q)
@@ -344,7 +358,7 @@ class AssessedSFSIFrame(AssessedFrame):
                                                                 self.axial_load_ratio, self.alpha, self.zeta)
 
 def to_table(aw, table_name="af-table"):
-    para = mo.output_to_table(aw, olist="all")
+    para = mo.output_to_table(aw, olist="inputs")
     para += mo.output_to_table(aw.fd, prefix="Foundation ")
     para += mo.output_to_table(aw.sl, prefix="Soil ")
     para += mo.output_to_table(aw.hz, prefix="Hazard ")

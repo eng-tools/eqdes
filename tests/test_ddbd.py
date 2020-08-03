@@ -91,11 +91,7 @@ def test_dbd_sfsi_frame():
     n_storeys = 5
     n_bays = 1
     fb = dm.FrameBuilding(n_storeys, n_bays)
-    fb.raft_height = 0  # m
-    fb.footing_mass = 0
-    fb.raft_foundation = 0
-    fb.pad_depth = 0.8 * np.ones((fb.n_bays + 1))
-    fb.pad_width = 2.0 * np.ones((fb.n_bays + 1))  # m
+
     fb.tie_depth = 0.8 * np.ones(fb.n_bays)  # m
     fb.tie_width = 0.8 * np.ones(fb.n_bays)  # m
     fb.foundation_rotation = 1e-3
@@ -104,11 +100,28 @@ def test_dbd_sfsi_frame():
     fb.Base_moment_contribution = 0.6
     fb.beam_group_size = 1
 
+    # Foundation
+    fd = dm.PadFoundation()
+    fb.height = 0  # m
+
+    fb.pad_depth = 0.8 * np.ones((fb.n_bays + 1))
+    fb.pad_width = 2.0 * np.ones((fb.n_bays + 1))  # m
+
     # Soil properties
-    fb.Soil_G_modulus = 80e6  # Pa
-    fb.Soil_Poissons_ratio = 0.3  # Poisson's ratio of the soil
-    fb.Soil_DR = 60  # %
-    fb.Soil_phi = 35
+
+    hz = dm.Hazard()
+    hz.z_factor = 0.3
+    hz.r_factor = 1.0
+    hz.n_factor = 1.0
+
+    sl = dm.Soil()
+    sl.g_mod = 80e6  # Pa
+    sl.poissons_ratio = 0.3  # Poisson's ratio of the soil
+    sl.e_curr = 0.6  # %
+    sl.phi = 35.
+    sl.specific_gravity = 2.65
+
+    frame_ddbd = ddbd.dbd_sfsi_frame(fb, hz, design_drift=design_drift)
 
 
 def to_be_test_ddbd_sfsi_wall_from_millen_pdf_paper_2018():

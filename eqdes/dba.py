@@ -77,12 +77,13 @@ def frame_sfsi(fb, hz, sl, fd, theta_max, otm_max, found_rot=0.00001, **kwargs):
     :param kwargs:
     :return:
     """
-
+    horz2vert_mass = kwargs.get('horz2vert_mass', 1.0)
     af = sm.AssessedSFSIFrame(fb, hz, sl, fd)
     af.otm_max = otm_max
     af.theta_max = theta_max
     af.theta_f = found_rot
     verbose = kwargs.get('verbose', af.verbose)
+
     af.static_values()
 
     # add foundation to heights

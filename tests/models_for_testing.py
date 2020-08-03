@@ -106,6 +106,7 @@ def load_raft_foundation_test_data(fd):
     fd.length = 18.0  # m
     fd.depth = 0.0  # m
     fd.mass = 0.0
+    fd.height = 1.0
 
 
 def initialise_foundation_test_data():
