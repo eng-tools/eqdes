@@ -5,6 +5,8 @@ from tests import models_for_testing as ml
 from eqdes import ddbd
 from eqdes import models as dm
 from eqdes import design_spectra
+import sfsimodels as sm
+import geofound as gf
 
 from tests.checking_tools import isclose
 
@@ -88,7 +90,7 @@ def test_ddbd_frame_fixed_large():
     # assert isclose(frame_ddbd.Storey_Forces, StoreyForcesCheck1)
 
 
-def test_dbd_sfsi_frame():
+def test_dbd_sfsi_frame_via_millen_et_al_2018():
     n_storeys = 5
     n_bays = 1
     fb = dm.FrameBuilding(n_storeys, n_bays)
@@ -204,6 +206,71 @@ def to_be_test_ddbd_sfsi_wall_from_millen_pdf_paper_2018():
     sl.Conc_Poissons_ratio = 0.18
 
 
+def load_system(n_bays=2, n_storeys=6):
+    hz = sm.SeismicHazard()
+    hz.z_factor = 0.3  # Hazard factor
+    hz.r_factor = 1.0  # Return period factor
+    hz.n_factor = 1.0  # Near-fault factor
+    hz.magnitude = 7.5  # Magnitude of earthquake
+    hz.corner_period = 4.0  # s
+    hz.corner_acc_factor = 0.55
+    sp = sm.Soil()
+    sp.g_mod = 10.0e6  # [Pa]
+    sp.phi = 35.0  # [degrees]
+    sp.unit_dry_weight = 17000  # [N/m3]
+    sp.unit_sat_weight = 18000  # [N/m3]
+    sp.unit_weight_water = 9800  # [N/m3]
+    sp.cohesion = 0.0  # [Pa]
+    sp.poissons_ratio = 0.22
+
+    interstorey_height = 3.4  # m
+    fb = sm.FrameBuilding(n_bays=n_bays, n_storeys=n_storeys)
+    fb.material = sm.material.ReinforcedConcrete()
+
+    fb.interstorey_heights = interstorey_height * np.ones(n_storeys)
+    fb.bay_lengths = 4.0 * np.ones(n_bays)
+    fb.floor_length = np.sum(fb.bay_lengths) + 4  # m
+    fb.floor_width = 12.0  # m
+    fb.n_seismic_frames = 3
+    fb.n_gravity_frames = 0
+    fb.set_storey_masses_by_pressure(8e3)  # Pa
+    col_loads = fb.get_column_vert_loads()
+
+    fd = sm.PadFoundation()
+    fd.width = fb.floor_width  # m
+    fd.length = fb.floor_length  # m
+    fd.depth = 0.8 + 0.1 * fb.n_storeys  # m
+    fd.height = 1.0  # m
+    fd.mass = 0.0  # kg
+    pad = gf.size_footing_for_capacity(sp, np.max(col_loads), method='salgado', fos=3., depth=fd.depth)
+
+    if fd.ftype == "pad":
+        fd.n_pads_l = fb.n_cols  # Number of pads in length direction
+        fd.n_pads_w = fb.n_frames  # Number of pads in width direction
+    fd.pad_length = pad.length
+    fd.pad_width = pad.width
+    fd.pad.depth = fd.depth
+    fd.pad.height = fd.height
+    fb.set_storey_masses_by_pressure(8e3)  # Pa
+    fb.horz2vert_mass = 1
+
+    fb.set_beam_prop('depth', 0.6, 'all')
+
+    return fb, fd, sp, hz
+
+
+def test_dbd_sfsi_frame_via_millen_et_al_2020():
+
+    fb, fd, sp, hz = load_system(n_storeys=3, n_bays=2)
+    designed_frame = ddbd.dbd_sfsi_frame_via_millen_et_al_2020(fb, hz, sp, fd, verbose=0)
+    print('delta_ss: ', designed_frame.delta_ss)
+    print('delta_f: ', designed_frame.delta_f)
+    print(designed_frame.axial_load_ratio)
+    assert np.isclose(designed_frame.axial_load_ratio, 4.7847976462)
+    assert np.isclose(designed_frame.delta_ss, 0.14170439)
+    assert np.isclose(designed_frame.delta_f, 0.001570054), designed_frame.delta_f
+
+
 def test_case_study_wall_pbd_wall():
     def create(save=0, show=1):
         n_storeys = 6
@@ -307,5 +374,5 @@ def test_calculate_rotation_via_millen_et_al_2020():
 
 
 if __name__ == '__main__':
-    test_dbd_sfsi_frame()
+    test_dbd_sfsi_frame_via_millen_et_al_2020()
     # test_calculate_rotation_via_millen_et_al_2020()
