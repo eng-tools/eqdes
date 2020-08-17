@@ -55,7 +55,7 @@ class WallBuilding(sm.WallBuilding):
     ]
 
 
-class Concrete(sm.material.Concrete):
+class ReinforcedConcrete(sm.material.ReinforcedConcrete):
     required_inputs = [
             'fy',
             'youngs_steel'
@@ -90,7 +90,7 @@ class PadFoundation(sm.PadFoundation):
     ]
 
 
-class DesignedFrame(FrameBuilding):
+class DesignedRCFrame(FrameBuilding):
     method = "standard"
 
     hz = Hazard()
@@ -109,21 +109,24 @@ class DesignedFrame(FrameBuilding):
     storey_forces = 0.0
 
     def __init__(self, fb, hz, verbose=0):
-        super(DesignedFrame, self).__init__(fb.n_storeys, fb.n_bays)  # run parent class initialiser function
+        super(DesignedRCFrame, self).__init__(fb.n_storeys, fb.n_bays)  # run parent class initialiser function
         self.__dict__.update(fb.__dict__)
         self.hz.__dict__.update(hz.__dict__)
         self.verbose = verbose
         self.av_beam = np.average(self.beam_depths)
         self.av_bay = np.average(self.bay_lengths)
+        assert fb.material.type == 'reinforced_concrete'
+        self.concrete = fb.material
         self.fye = 1.1 * self.concrete.fy
         self.storey_mass_p_frame = self.storey_masses / self.n_seismic_frames
         self.storey_forces = np.zeros((1, len(self.storey_masses)))
         self.hm_factor = dt.cal_higher_mode_factor(self.n_storeys, btype="frame")
         self._extra_class_variables = ["method"]
         self.inputs += self._extra_class_variables
+        self.beam_group_size = 2
 
 
-class DesignedWall(WallBuilding):
+class DesignedRCWall(WallBuilding):
     method = "standard"
     preferred_bar_diameter = 0.032
 
@@ -146,10 +149,12 @@ class DesignedWall(WallBuilding):
     storey_forces = 0.0
 
     def __init__(self, wb, hz, verbose=0):
-        super(DesignedWall, self).__init__(wb.n_storeys)  # run parent class initialiser function
+        super(DesignedRCWall, self).__init__(wb.n_storeys)  # run parent class initialiser function
         self.__dict__.update(wb.__dict__)
         self.hz.__dict__.update(hz.__dict__)
         self.verbose = verbose
+        assert wb.material.type == 'reinforced_concrete'
+        self.concrete = wb.material
         self.fye = 1.1 * self.concrete.fy
         self.storey_mass_p_wall = self.storey_masses / self.n_walls
         self.storey_forces = np.zeros((1, len(self.storey_masses)))
@@ -165,7 +170,7 @@ class DesignedWall(WallBuilding):
         self.fu = 1.40 * self.fye  # Assumed, see pg 141
 
 
-class AssessedFrame(FrameBuilding):
+class AssessedRCFrame(FrameBuilding):
     method = "standard"
     post_yield_stiffness_ratio = 0.05
 
@@ -190,7 +195,7 @@ class AssessedFrame(FrameBuilding):
     storey_forces = 0.0
 
     def __init__(self, fb, hz, verbose=0):
-        super(AssessedFrame, self).__init__(n_bays=fb.n_bays, n_storeys=fb.n_storeys)  # run parent class initialiser function
+        super(AssessedRCFrame, self).__init__(n_bays=fb.n_bays, n_storeys=fb.n_storeys)  # run parent class initialiser function
         self.concrete = fb.concrete
         self.__dict__.update(fb.__dict__)
         self.hz.__dict__.update(hz.__dict__)
@@ -205,7 +210,7 @@ class AssessedFrame(FrameBuilding):
         self.inputs += self._extra_class_variables
 
 
-class DesignedSFSIFrame(DesignedFrame):
+class DesignedSFSIFrame(DesignedRCFrame):
 
     sl = sm.Soil()
     fd = sm.RaftFoundation()
@@ -229,6 +234,7 @@ class DesignedSFSIFrame(DesignedFrame):
         self.zeta = 1.5
         if horz2vert_mass is not None:
             self.horz2vert_mass = horz2vert_mass
+        self.beam_group_size = 2
 
     def static_values(self):
         self.total_weight = self.horz2vert_mass * (sum(self.storey_masses) + self.fd.mass) * self.g
@@ -241,6 +247,7 @@ class DesignedSFSIFrame(DesignedFrame):
         bearing_capacity = nf.bearing_capacity(self.fd.area, self.soil_q)
         weight_per_frame = self.horz2vert_mass * sum(self.storey_masses) / (self.n_seismic_frames + self.n_gravity_frames) * self.g
         self.axial_load_ratio = bearing_capacity / self.total_weight
+        self.fd_bearing_capacity = bearing_capacity
 
         self.theta_pseudo_up = nf.calculate_pseudo_uplift_angle(self.total_weight, self.fd.width, self.k_f_0,
                                                                 self.axial_load_ratio, self.alpha, self.zeta)
@@ -259,7 +266,7 @@ def designed_frame_table(fb, table_name="df-table"):
 #     pass
 
 
-class DesignedSFSIWall(DesignedWall):
+class DesignedSFSIRCWall(DesignedRCWall):
 
     sl = sm.Soil()
     fd = sm.RaftFoundation()
@@ -270,18 +277,16 @@ class DesignedSFSIWall(DesignedWall):
     theta_pseudo_up = 0.0
 
     def __init__(self, wb, hz, sl, fd):
-        super(DesignedSFSIWall, self).__init__(wb, hz)  # run parent class initialiser function
+        super(DesignedSFSIRCWall, self).__init__(wb, hz)  # run parent class initialiser function
         self.sl.__dict__.update(sl.__dict__)
         self.fd.__dict__.update(fd.__dict__)
-        self.k_f0_shear = geofound.shear_stiffness(self.fd.width, self.fd.length, self.sl.g_mod, self.sl.poissons_ratio)
+        self.k_f0_shear = geofound.stiffness.calc_shear_via_gazetas_1991(self.sl, self.fd, ip_axis='length')
 
         if self.fd.ftype == "raft":
-            self.k_f_0 = geofound.rotational_stiffness(self.sl, self.fd)
             self.alpha = 4.0
         else:
-            self.k_f_0 = geofound.rotational_stiffness(self.sl, self.fd)
             self.alpha = 3.0
-
+        self.k_f_0 = geofound.stiffness.calc_rotational_via_gazetas_1991(self.sl, self.fd, ip_axis='length')
         self.zeta = 1.5
 
     def static_values(self):
@@ -305,7 +310,7 @@ def design_wall_to_table(dw, table_name="df-table"):
     return para
 
 
-class AssessedSFSIFrame(AssessedFrame):
+class AssessedSFSIRCFrame(AssessedRCFrame):
     sl = sm.Soil()
     fd = sm.Foundation()
     total_weight = 0.0
@@ -314,7 +319,7 @@ class AssessedSFSIFrame(AssessedFrame):
     theta_pseudo_up = 0.0
 
     def __init__(self, fb, hz, sl, fd, ip_axis='length', horz2vert_mass=None):
-        super(AssessedSFSIFrame, self).__init__(fb, hz)  # run parent class initialiser function
+        super(AssessedSFSIRCFrame, self).__init__(fb, hz)  # run parent class initialiser function
         self.sl.__dict__.update(sl.__dict__)
         if fd.ftype == "raft":
             self.fd = sm.RaftFoundation()

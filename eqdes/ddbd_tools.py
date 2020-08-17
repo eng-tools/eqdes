@@ -157,6 +157,7 @@ def effective_period(delta_d, eta, corner_disp, corner_period):
 def effective_period_from_stiffness(mass_eff, k_eff):
     """
     Calculates the effective period based on the mass and stiffness
+    
     :param mass_eff: effective mass
     :param k_eff: effective stiffness
     :return:
@@ -176,6 +177,7 @@ def effective_stiffness_from_base_shear(v_base, disp):
 def displacement_from_effective_period(eta, corner_disp, t_eff, corner_period):
     """
     Displacement of SDOF using displacement-based assessment. # Eq. 11 Millen et al. (2016)
+    
     :param eta: Displacement reduction factor
     :param corner_disp: Corner spectral displacement
     :param t_eff: Effective displacement
@@ -190,6 +192,7 @@ def displacement_from_effective_period(eta, corner_disp, t_eff, corner_period):
 def effective_stiffness(mass_eff, t_eff):
     """
     Calculates the effective period based on the mass and period
+    
     :param mass_eff: effective mass
     :param t_eff: effective period
     :return:
@@ -205,6 +208,7 @@ def design_base_shear(k_eff, delta_d):
 def bilinear_load_factor(ductility_current, ductility_max, r):
     """
     Computes the load
+    
     :param ductility_current: Current ductility
     :param ductility_max: Maximum ductility
     :param r: post-yield bi-linear
@@ -220,10 +224,14 @@ def bilinear_load_factor(ductility_current, ductility_max, r):
         return (1.0 - hardening_load) * ductility_current
 
 
-def calculate_storey_forces(masses, displacements, v_base):
+def calculate_storey_forces(masses, displacements, v_base, btype):
+    if btype == 'frame':
+        k = 0.9
+    else:
+        k = 1.0
     mass_x_disp = np.array(masses) * np.array(displacements)
-    storey_forces = 0.9 * v_base * mass_x_disp / sum(mass_x_disp)  # Newtons per storey
-    storey_forces[-1] = storey_forces[-1] + 0.1 * v_base
+    storey_forces = k * v_base * mass_x_disp / sum(mass_x_disp)  # Newtons per storey
+    storey_forces[-1] += (1 - k) * v_base
     return storey_forces
 
 

@@ -63,16 +63,20 @@ def dba_frame(fb, hz, theta_max, otm_max, **kwargs):
             if verbose > 1:
                 print("drift %.2f is not compatible" % theta_c)
     af.assessed_drift = theta_c
+    af.storey_forces = dt.calculate_storey_forces(af.storey_mass_p_frame, displacements, af.v_base, btype='frame')
     return af
 
 
-def frame_sfsi(fb, hz, sl, fd, theta_max, otm_max, found_rot=0.00001, **kwargs):
+def frame_sfsi(fb, hz, sl, fd, theta_max, otm_max, found_rot=0.00001, mcbs=None, **kwargs):
     """
     Displacement-based assessment of a frame building considering SFSI
+
+
     :param fb: FrameBuilding Object
     :param hz: Hazard Object
     :param theta_max: [degrees], maximum structural interstorey drift
-    :param otm_max: [N], maximum overturning moment
+    :param otm_max: [N],Maximum overturning moment
+    :param mcbs: [Nm], Column base moments (required if foundation is PadFoundation)
     :param found_rot: [rad], initial guess of foundation rotation
     :param kwargs:
     :return:
@@ -174,6 +178,7 @@ def frame_sfsi(fb, hz, sl, fd, theta_max, otm_max, found_rot=0.00001, **kwargs):
             if verbose > 1:
                 print("drift %.2f is not compatible" % theta_c)
     af.assessed_drift = theta_c
+    af.storey_forces = dt.calculate_storey_forces(af.storey_mass_p_frame, displacements, af.v_base, btype='frame')
     return af
 
 

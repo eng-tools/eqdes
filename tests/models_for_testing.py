@@ -35,6 +35,7 @@ def initialise_frame_building_test_data():
     number_of_storeys = 6
     number_of_bays = 3
     fb = em.FrameBuilding(n_storeys=number_of_storeys, n_bays=number_of_bays)
+    fb.material = em.ReinforcedConcrete()
     interstorey_height = 3.4  # m
     masses = 40.0e3  # kg
 
@@ -47,6 +48,7 @@ def initialise_frame_building_test_data():
     fb.set_beam_prop("depth", [.5, .5, .5])
     fb.n_seismic_frames = 3
     fb.n_gravity_frames = 0
+    fb.horz2vert_mass = 1
     return fb
 
 
@@ -58,6 +60,7 @@ def initialise_wall_building_test_data():
     """
     number_of_storeys = 6
     wb = em.WallBuilding(number_of_storeys)
+    wb.material = em.ReinforcedConcrete()
 
     interstorey_height = 3.4  # m
     masses = 40.0e3  # kg

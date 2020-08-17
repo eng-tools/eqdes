@@ -22,7 +22,7 @@ def test_calculate_storey_forces():
     masses = [2., 2.]
     displacements = [0.5, 0.5]
     v_base = 10.0
-    forces = dt.calculate_storey_forces(masses, displacements, v_base)
+    forces = dt.calculate_storey_forces(masses, displacements, v_base, btype='frame')
     assert forces[0] == 4.5
     assert forces[1] == 5.5
 

@@ -21,7 +21,7 @@ setup(name='eqdes',
       packages=find_packages(exclude=['contrib', 'docs', 'tests']),
       install_requires=[
           "numpy",
-          "sfsimodels>=0.7.19",
+          "sfsimodels>=0.9.25",
           "geofound>=0.4.0"
       ],
       # List additional groups of dependencies here (e.g. development

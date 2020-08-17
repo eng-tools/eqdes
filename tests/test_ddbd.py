@@ -42,7 +42,7 @@ def test_ddbd_frame_consistent():
     frame_ddbd = ddbd.dbd_frame(fb, hz)
     sl.override("g_mod", 1.0e10)  # make soil very stiff
     fd.height = 2.0  # add some height to the foundation
-    frame_sfsi_dbd = ddbd.dbd_sfsi_frame(fb, hz, sl, fd, found_rot=1e-6)
+    frame_sfsi_dbd = ddbd.dbd_sfsi_frame_via_millen_et_al_2018(fb, hz, sl, fd, found_rot=1e-6)
     assert isclose(frame_sfsi_dbd.theta_f, 0.0, abs_tol=1e-5)
 
     assert isclose(frame_ddbd.delta_d, frame_sfsi_dbd.delta_d, rel_tol=0.01), frame_sfsi_dbd.delta_d
@@ -59,6 +59,7 @@ def test_ddbd_frame_fixed_large():
     n_storeys = 5
     n_bays = 1
     fb = dm.FrameBuilding(n_storeys, n_bays)
+    fb.material = dm.ReinforcedConcrete()
     hz = dm.Hazard()
 
     fb.interstorey_heights = 3.6 * np.ones(n_storeys)
@@ -91,6 +92,14 @@ def test_dbd_sfsi_frame():
     n_storeys = 5
     n_bays = 1
     fb = dm.FrameBuilding(n_storeys, n_bays)
+    fb.n_seismic_frames = 2
+    fb.n_gravity_frames = 0
+    fb.material = dm.ReinforcedConcrete()
+    fb.bay_lengths = [5.]
+    fb.floor_width = 5.
+    fb.floor_length = 5.
+    fb.storey_masses = 700 * fb.floor_area * np.ones(n_storeys)
+    fb.interstorey_heights = 3.4 * np.ones(n_storeys)
 
     fb.tie_depth = 0.8 * np.ones(fb.n_bays)  # m
     fb.tie_width = 0.8 * np.ones(fb.n_bays)  # m
@@ -99,13 +108,23 @@ def test_dbd_sfsi_frame():
     fb.AxialLoadRatio = 26  # Should calculate this
     fb.Base_moment_contribution = 0.6
     fb.beam_group_size = 1
+    fb.set_beam_prop('depth', 0.4, repeat='all')
 
     # Foundation
     fd = dm.PadFoundation()
-    fb.height = 0  # m
+    fd.height = 0  # m
+    fd.length = 5
+    fd.width = 5.
+    fd.depth = 0.8
 
-    fb.pad_depth = 0.8 * np.ones((fb.n_bays + 1))
-    fb.pad_width = 2.0 * np.ones((fb.n_bays + 1))  # m
+    fd.pad.width = 1.4  # m
+    fd.pad.length = 1.4  # m
+    fd.pad.depth = 0.5  # m
+    fd.pad.height = 0
+    fd.n_pads_l = 2
+    fd.n_pads_w = 2
+    fd.mass = 0
+    fd2 = fd.deepcopy()
 
     # Soil properties
 
@@ -113,15 +132,22 @@ def test_dbd_sfsi_frame():
     hz.z_factor = 0.3
     hz.r_factor = 1.0
     hz.n_factor = 1.0
+    hz.corner_acc_factor = 2.
+    hz.corner_period = 1
 
     sl = dm.Soil()
-    sl.g_mod = 80e6  # Pa
+    sl.g_mod = 120e6  # Pa
     sl.poissons_ratio = 0.3  # Poisson's ratio of the soil
     sl.e_curr = 0.6  # %
     sl.phi = 35.
+    sl.cohesion = 0
     sl.specific_gravity = 2.65
 
-    frame_ddbd = ddbd.dbd_sfsi_frame(fb, hz, design_drift=design_drift)
+    design_drift = 0.02
+
+    frame_ddbd = ddbd.dbd_sfsi_frame_via_millen_et_al_2018(fb, hz, sl, fd, design_drift=design_drift, verbose=2)
+    assert np.isclose(frame_ddbd.delta_d, 0.08488596), frame_ddbd.delta_d
+    assert np.isclose(frame_ddbd.theta_f, 0.0050136357), frame_ddbd.theta_f
 
 
 def to_be_test_ddbd_sfsi_wall_from_millen_pdf_paper_2018():
@@ -247,5 +273,39 @@ def test_ddbd_wall_fixed():
     assert isclose(wall_dbd.eta, 0.86946, rel_tol=0.001), wall_dbd.eta
     assert isclose(wall_dbd.t_eff, 2.38184, rel_tol=0.001), wall_dbd.t_eff
 
+
+def test_calculate_rotation_via_millen_et_al_2020():
+    mom = 200.
+    k_rot = 1000.0e2
+    psi = 0.4
+    h_eff = 3.0
+    l_in = 3.0
+    n_load = 300.
+    n_cap = 3000.
+    theta = ddbd.calculate_rotation_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom, h_eff)
+    assert np.isclose(theta, 0.0053710398), theta
+
+    n_load = 2000.
+    n_cap = 3000.
+    l_in = 5.0
+    mom = 100.
+    theta = ddbd.calculate_rotation_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom, h_eff)
+    assert np.isclose(theta, 0.0011910855), theta
+
+    # very large moment
+    mom = 3000.
+    theta = ddbd.calculate_rotation_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom, h_eff)
+    assert theta is None
+
+    # n_load equal to n_cap
+    mom = 10
+    n_load = 300.
+    n_cap = 300.
+    theta = ddbd.calculate_rotation_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom, h_eff)
+    assert theta is None
+
+
+
 if __name__ == '__main__':
-    test_ddbd_frame_fixed_large()
+    test_dbd_sfsi_frame()
+    # test_calculate_rotation_via_millen_et_al_2020()

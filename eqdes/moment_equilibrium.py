@@ -16,31 +16,31 @@ def assess(fb, storey_forces, mom_ratio=0.6, verbose=0):
         print(fb.column_depth)
         raise NotImplementedError
 
-    height = np.zeros(len(fb.storey_heights))
-    for i in range(len(fb.storey_heights)):
+    height = np.zeros(fb.n_storeys)
+    for i in range(fb.n_storeys):
         if i == 0:
-            height[i] = fb.storey_heights[i]
+            height[i] = fb.interstorey_heights[i]
         else:
-            height[i] = height[i - 1] + fb.storey_heights[i]
+            height[i] = height[i - 1] + fb.interstorey_heights[i]
 
     mom_running = 0
-    mom_storey = np.zeros(len(fb.storey_heights))
-    v_storey = np.zeros(len(fb.storey_heights))
-    for i in range(len(fb.storey_heights)):
+    mom_storey = np.zeros(fb.n_storeys)
+    v_storey = np.zeros(fb.n_storeys)
+    for i in range(fb.n_storeys):
 
         if i == 0:
             v_storey[-1 - i] = storey_forces[-1 - i]
         else:
             v_storey[-1 - i] = v_storey[-i] + storey_forces[-1 - i]
         mom_storey[-1 - i] = (v_storey[-1 - i] *
-            fb.storey_heights[-1 - i] + mom_running)
+            fb.interstorey_heights[-1 - i] + mom_running)
         mom_running = mom_storey[-1 - i]
 
     cumulative_total_shear = sum(v_storey)
     base_shear = sum(storey_forces)
 
     # Column_base_moment_total=mom_storey[0]*Base_moment_contribution
-    column_base_moment_total = base_shear * mom_ratio * fb.storey_heights[0]
+    column_base_moment_total = base_shear * mom_ratio * fb.interstorey_heights[0]
     moment_column_bases = (column_base_moment_total / fb.n_bays * np.ones((fb.n_bays + 1)))
     moment_column_bases[0] = moment_column_bases[0] / 2
     moment_column_bases[-1] = moment_column_bases[-1] / 2

@@ -3,6 +3,8 @@ README
 
 This package contains solvers for direct displacement-based design
 
+Major revision at version 0.3.0 - this package is still in alpha.
+
 Setting up tests
 ----------------
 

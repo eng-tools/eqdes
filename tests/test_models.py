@@ -9,7 +9,7 @@ def test_model_inputs():
                 dm.FrameBuilding(1, 1),
                 dm.WallBuilding(1),
                 dm.Soil(),
-                dm.Concrete()]
+                dm.ReinforcedConcrete()]
     for model in p_models:
         for parameter in model.required_inputs:
             assert hasattr(model, parameter), parameter
@@ -21,7 +21,7 @@ def test_initialse_designed_walls():
     sl = conftest.sl_test
     fd = conftest.fd_test
 
-    dw = dm.DesignedSFSIWall(wb, hz, sl, fd)
+    dw = dm.DesignedSFSIRCWall(wb, hz, sl, fd)
     dw.design_drift = 0.025
     assert dw.sl.unit_dry_weight == sl.unit_dry_weight
 
