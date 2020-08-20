@@ -1,5 +1,5 @@
 
-from eqdes import ddbd_tools as dt
+from eqdes import dbd_tools as dt
 from tests.checking_tools import isclose
 
 

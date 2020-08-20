@@ -4,7 +4,7 @@ import sfsimodels
 from sfsimodels import output as mo
 
 from eqdes import models as sm
-from eqdes import ddbd_tools as dt
+from eqdes import dbd_tools as dt
 from eqdes import nonlinear_foundation as nf
 from eqdes.extensions.exceptions import DesignError
 from eqdes import moment_equilibrium
@@ -275,7 +275,7 @@ def design_rc_frame_w_sfsi_via_millen_et_al_2020(fb, hz, sl, fd, design_drift=0.
 
     df.theta_f = found_rot
 
-    w_pads = 1
+    w_pads = 0
     if w_pads:
         mom_ratio = 0.6
         moment_beams_cl, moment_column_bases, axial_seismic = moment_equilibrium.assess(df, df.storey_forces, mom_ratio)

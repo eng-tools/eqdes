@@ -4,7 +4,7 @@ from sfsimodels import loader as ml
 from sfsimodels import output as mo
 
 from eqdes import models as sm
-from eqdes import ddbd_tools as dt
+from eqdes import dbd_tools as dt
 from eqdes import nonlinear_foundation as nf
 
 

@@ -4,7 +4,7 @@ from sfsimodels import models as sm
 from sfsimodels import output as mo
 import geofound
 from eqdes import nonlinear_foundation as nf
-from eqdes import ddbd_tools as dt
+from eqdes import dbd_tools as dt
 from eqdes.extensions.exceptions import DesignError
 
 
