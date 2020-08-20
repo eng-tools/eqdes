@@ -55,10 +55,10 @@ class WallBuilding(sm.WallBuilding):
     ]
 
 
-class ReinforcedConcrete(sm.material.ReinforcedConcrete):
+class ReinforcedConcrete(sm.materials.ReinforcedConcreteMaterial):
     required_inputs = [
             'fy',
-            'youngs_steel'
+            'e_mod_steel'
     ]
 
 
@@ -115,7 +115,7 @@ class DesignedRCFrame(FrameBuilding):
         self.verbose = verbose
         self.av_beam = np.average(self.beam_depths)
         self.av_bay = np.average(self.bay_lengths)
-        assert fb.material.type == 'reinforced_concrete'
+        assert fb.material.type == 'rc_material'
         self.concrete = fb.material
         self.fye = 1.1 * self.concrete.fy
         self.storey_mass_p_frame = self.storey_masses / self.n_seismic_frames
@@ -153,7 +153,7 @@ class DesignedRCWall(WallBuilding):
         self.__dict__.update(wb.__dict__)
         self.hz.__dict__.update(hz.__dict__)
         self.verbose = verbose
-        assert wb.material.type == 'reinforced_concrete'
+        assert wb.material.type == 'rc_material'
         self.concrete = wb.material
         self.fye = 1.1 * self.concrete.fy
         self.storey_mass_p_wall = self.storey_masses / self.n_walls
@@ -166,7 +166,7 @@ class DesignedRCWall(WallBuilding):
         # Material strain limits check
         self.phi_material = 0.072 / self.wall_depth  # Eq 6.10b
         self.fye = 1.1 * self.concrete.fy
-        self.epsilon_y = self.fye / self.concrete.youngs_steel
+        self.epsilon_y = self.fye / self.concrete.e_mod_steel
         self.fu = 1.40 * self.fye  # Assumed, see pg 141
 
 
@@ -196,7 +196,7 @@ class AssessedRCFrame(FrameBuilding):
 
     def __init__(self, fb, hz, verbose=0):
         super(AssessedRCFrame, self).__init__(n_bays=fb.n_bays, n_storeys=fb.n_storeys)  # run parent class initialiser function
-        assert fb.material.type == 'reinforced_concrete'
+        assert fb.material.type == 'rc_material'
         self.concrete = fb.material
         self.__dict__.update(fb.__dict__)
         self.hz.__dict__.update(hz.__dict__)
@@ -339,7 +339,7 @@ class AssessedSFSIRCFrame(AssessedRCFrame):
         self.zeta = 1.5
         if horz2vert_mass is not None:
             self.horz2vert_mass = horz2vert_mass
-        assert fb.material.type == 'reinforced_concrete'
+        assert fb.material.type == 'rc_material'
         self.concrete = fb.material
 
 

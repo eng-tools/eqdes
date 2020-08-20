@@ -225,7 +225,7 @@ def load_system(n_bays=2, n_storeys=6):
 
     interstorey_height = 3.4  # m
     fb = sm.FrameBuilding(n_bays=n_bays, n_storeys=n_storeys)
-    fb.material = sm.material.ReinforcedConcrete()
+    fb.material = sm.materials.ReinforcedConcreteMaterial()
 
     fb.interstorey_heights = interstorey_height * np.ones(n_storeys)
     fb.bay_lengths = 4.0 * np.ones(n_bays)
