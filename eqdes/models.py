@@ -211,7 +211,7 @@ class AssessedRCFrame(FrameBuilding):
         self.inputs += self._extra_class_variables
 
 
-class DesignedSFSIFrame(DesignedRCFrame):
+class DesignedSFSIRCFrame(DesignedRCFrame):
 
     sl = sm.Soil()
     fd = sm.RaftFoundation()
@@ -221,7 +221,7 @@ class DesignedSFSIFrame(DesignedRCFrame):
     theta_pseudo_up = 0.0
 
     def __init__(self, fb, hz, sl, fd, ip_axis='length', horz2vert_mass=None):
-        super(DesignedSFSIFrame, self).__init__(fb, hz)  # run parent class initialiser function
+        super(DesignedSFSIRCFrame, self).__init__(fb, hz)  # run parent class initialiser function
         self.sl.__dict__.update(sl.__dict__)
         # self.fd.__dict__.update(fd.__dict__)
         self.fd = fd.deepcopy()

@@ -35,7 +35,7 @@ def calc_fd_rot_via_millen_et_al_2020(k_rot_el, l_in, n_load, n_cap, psi, m_f, h
     m_cap = calc_moment_capacity_via_millen_et_al_2020(l_in, n_load, n_cap, psi, h_eff)
     rot = np.where(m_f > m_cap, None, m_f * (np.log(m_cap / m_f) + f_p) / (k_rot_el * np.log(m_cap / m_f)))
     if not hasattr(m_f, '__len__'):
-        return np.asscalar(rot)
+        return rot.item()
     return rot
 
 
@@ -118,102 +118,10 @@ def design_rc_frame(fb, hz, design_drift=0.02, **kwargs):
     return df
 
 
-def design_rc_wall(wb, hz, design_drift=0.025, **kwargs):
-    """
-    Displacement-based design of a reinforced concrete wall.
-
-    :param wb: WallBuilding object
-    :param hz: Hazard Object
-    :param design_drift: Design drift
-    :param kwargs:
-    :return: DesignedWall object
-    """
-
-    dw = em.DesignedRCWall(wb, hz)
-    dw.design_drift = design_drift
-    verbose = kwargs.get('verbose', dw.verbose)
-    dw.static_dbd_values()
-    # k = min(0.2 * (fu / fye - 1), 0.08)  # Eq 4.31b
-    k = min(0.15 * (dw.fu / dw.fye - 1), 0.06)  # Eq 6.5a from DDBD code
-    l_c = dw.max_height
-    long_db = dw.preferred_bar_diameter
-    l_sp = 0.022 * dw.fye * long_db / 1.0e6  # Eq 4.30
-    l_p = max(k * l_c + l_sp + 0.1 * dw.wall_depth, 2 * l_sp)
-    phi_y = dt.yield_curvature(dw.epsilon_y, dw.wall_depth, btype="wall")
-    delta_y = dt.yield_displacement_wall(phi_y, dw.heights, dw.max_height)
-    phi_p = dw.phi_material - phi_y
-    # determine whether code limit or material strain governs
-    theta_ss_code = design_drift
-    dw.theta_y = dw.epsilon_y * dw.max_height / dw.wall_depth
-    theta_p_code = (theta_ss_code - dw.theta_y)
-    theta_p = min(theta_p_code, phi_p * l_p)
-
-    # Assume no torsional effects
-    increments = theta_p + dw.theta_y
-    for i in range(20):
-        reduced_theta_p = theta_p - increments * float(i) / 20
-        if reduced_theta_p > 0.0:
-            non_linear = 1
-
-            delta_p = reduced_theta_p * (dw.heights - (0.5 * l_p - l_sp))
-            if verbose > 2:
-                print('reduced_theta_p: ', reduced_theta_p)
-                print('delta_p: ', delta_p)
-
-            delta_st = delta_y + delta_p
-        else:
-            raise DesignError('can not handle linear design, resize footing')
-
-        dw.design_drift = reduced_theta_p + dw.theta_y
-
-        delta_ls = delta_st
-
-        displacements = delta_ls * dw.hm_factor
-
-        dw.delta_d, dw.mass_eff, dw.height_eff = dt.equivalent_sdof(dw.storey_mass_p_wall, displacements, dw.heights)
-        delta_y = dt.yield_displacement_wall(phi_y, dw.height_eff, dw.max_height)
-        dw.mu = dt.ductility(dw.delta_d, delta_y)
-        dw.xi = dt.equivalent_viscous_damping(dw.mu, mtype="concrete", btype="wall")
-        dw.eta = dt.reduction_factor(dw.xi)
-        dw.t_eff = dt.effective_period(dw.delta_d, dw.eta, dw.hz.corner_disp, dw.hz.corner_period)
-
-        if verbose > 1:
-            print('Delta_D: ', dw.delta_d)
-            print('Effective mass: ', dw.mass_eff)
-            print('Effective height: ', dw.height_eff)
-            print('Mu: ', dw.mu)
-            print('theta yield', dw.theta_y)
-            print('xi: ', dw.xi)
-            print('Reduction Factor: ', dw.eta)
-            print('t_eff', dw.t_eff)
-
-        if dw.t_eff > 0:
-            break
-        else:
-            if verbose > 1:
-                print("drift %.2f is not compatible" % reduced_theta_p)
-    k_eff = dt.effective_stiffness(dw.mass_eff, dw.t_eff)
-    dw.v_base = dt.design_base_shear(k_eff, dw.delta_d)
-    dw.storey_forces = dt.calculate_storey_forces(dw.storey_mass_p_wall, displacements, dw.v_base, btype='wall')
-    return dw
-
-
-def check_local_footing_rotations(sl, pad, m_foot, h_eff, ip_axis, k_ties=0):
-    k_f_0_pad = gf.stiffness.calc_rotational_via_gazetas_1991(sl, pad, ip_axis=ip_axis)
-    l_in = getattr(pad, ip_axis)
-    psi = 0.75 * np.tan(sl.phi_r)
-
-    rot_ipad = calc_fd_rot_via_millen_et_al_2020_w_tie_beams(k_f_0_pad, l_in, pad.n_load, pad.n_ult, psi, m_foot, h_eff, k_ties)
-
-    return rot_ipad
-    # TODO: check exterior columns
-    # TODO: check if pad rotation exceeds global rotation + base hinge rotation
-
-
 def design_rc_frame_w_sfsi_via_millen_et_al_2020(fb, hz, sl, fd, design_drift=0.02, found_rot=0.00001,
                                          found_rot_tol=0.02, found_rot_iterations=20, **kwargs):
     import geofound as gf
-    df = em.DesignedSFSIFrame(fb, hz, sl, fd)
+    df = em.DesignedSFSIRCFrame(fb, hz, sl, fd)
     df.design_drift = design_drift
     verbose = kwargs.get('verbose', df.verbose)
     df.static_values()
@@ -340,18 +248,21 @@ def design_rc_frame_w_sfsi_via_millen_et_al_2020(fb, hz, sl, fd, design_drift=0.
             k_ties = (6 * tb_sect.i_rot_ww_cracked * tb_sect.rc_mat.e_mod_conc) / tb_length
         else:
             k_ties = 0
-        rot_ipad = check_local_footing_rotations(sl, pad, m_foot_int, h_eff, ip_axis=ip_axis, k_ties=2*k_ties)
+        l_in = getattr(pad, ip_axis)
+        k_f_0_pad = gf.stiffness.calc_rotational_via_gazetas_1991(sl, pad, ip_axis=ip_axis)
+        rot_ipad = calc_fd_rot_via_millen_et_al_2020_w_tie_beams(k_f_0_pad, l_in, int_nloads, pad.n_ult, psi,
+                                                                 m_foot_int, h_eff, 2 * k_ties)
         # Exterior footings
-
         if rot_ipad is None:  # First try moment ratio of 0.5
-            m_cap = pad.n_load * getattr(pad, ip_axis) / 2 * (1 - pad.n_load / pad.n_ult)
-            l_in = getattr(pad, ip_axis)
+            # m_cap = pad.n_load * getattr(pad, ip_axis) / 2 * (1 - pad.n_load / pad.n_ult)
             m_cap = calc_moment_capacity_via_millen_et_al_2020(l_in, pad.n_load, pad.n_ult, psi, h_eff)
             raise DesignError(f"Design failed - interior footing moment demand ({m_foot_int/1e3:.3g})"
                               f" kNm exceeds capacity (~{m_cap/1e3:.3g} kNm)")
         m_foot_ext = np.max(moment_column_bases[np.array([0, -1])]) * h_eff / df.interstorey_heights[0]
         pad.n_load = ext_nloads
-        rot_epad = check_local_footing_rotations(sl, pad, m_foot_ext, h_eff, ip_axis=ip_axis, k_ties=k_ties)
+        # rot_epad = check_local_footing_rotations(sl, pad, m_foot_ext, h_eff, ip_axis=ip_axis, k_ties=k_ties)
+        rot_epad = calc_fd_rot_via_millen_et_al_2020_w_tie_beams(k_f_0_pad, l_in, ext_nloads, pad.n_ult, psi,
+                                                                 m_foot_ext, h_eff, k_ties)
         if rot_epad is None:
             m_cap = pad.n_load * getattr(pad, ip_axis) / 2 * (1 - pad.n_load / pad.n_ult)
             raise DesignError(f"Design failed - interior footing moment demand ({m_foot_ext/1e3:.3g})"
@@ -363,15 +274,12 @@ def design_rc_frame_w_sfsi_via_millen_et_al_2020(fb, hz, sl, fd, design_drift=0.
             raise DesignError(f"Design failed - footing rotation ({pad_rot:.3g}) "
                               f"exceeds plastic rotation (~{plastic_rot:.3g})")
 
-
-
-
     return df
 
 
 def design_rc_frame_w_sfsi_via_millen_et_al_2018(fb, hz, sl, fd, design_drift=0.02, found_rot=0.00001, found_rot_tol=0.02, found_rot_iterations=20, **kwargs):
 
-    df = em.DesignedSFSIFrame(fb, hz, sl, fd)
+    df = em.DesignedSFSIRCFrame(fb, hz, sl, fd)
     df.design_drift = design_drift
     df.theta_f = found_rot
     verbose = kwargs.get('verbose', df.verbose)
@@ -464,6 +372,182 @@ def design_rc_frame_w_sfsi_via_millen_et_al_2018(fb, hz, sl, fd, design_drift=0.
 
         df.theta_f = found_rot
     return df
+
+
+
+def design_rc_wall(wb, hz, design_drift=0.025, **kwargs):
+    """
+    Displacement-based design of a reinforced concrete wall.
+
+    :param wb: WallBuilding object
+    :param hz: Hazard Object
+    :param design_drift: Design drift
+    :param kwargs:
+    :return: DesignedWall object
+    """
+
+    dw = em.DesignedRCWall(wb, hz)
+    dw.design_drift = design_drift
+    verbose = kwargs.get('verbose', dw.verbose)
+    dw.static_dbd_values()
+    # k = min(0.2 * (fu / fye - 1), 0.08)  # Eq 4.31b
+    k = min(0.15 * (dw.fu / dw.fye - 1), 0.06)  # Eq 6.5a from DDBD code
+    l_c = dw.max_height
+    long_db = dw.preferred_bar_diameter
+    l_sp = 0.022 * dw.fye * long_db / 1.0e6  # Eq 4.30
+    l_p = max(k * l_c + l_sp + 0.1 * dw.wall_depth, 2 * l_sp)
+    phi_y = dt.yield_curvature(dw.epsilon_y, dw.wall_depth, btype="wall")
+    delta_y = dt.yield_displacement_wall(phi_y, dw.heights, dw.max_height)
+    phi_p = dw.phi_material - phi_y
+    # determine whether code limit or material strain governs
+    theta_ss_code = design_drift
+    dw.theta_y = dw.epsilon_y * dw.max_height / dw.wall_depth
+    theta_p_code = (theta_ss_code - dw.theta_y)
+    theta_p = min(theta_p_code, phi_p * l_p)
+
+    # Assume no torsional effects
+    increments = theta_p + dw.theta_y
+    for i in range(20):
+        reduced_theta_p = theta_p - increments * float(i) / 20
+        if reduced_theta_p > 0.0:
+            non_linear = 1
+
+            delta_p = reduced_theta_p * (dw.heights - (0.5 * l_p - l_sp))
+            if verbose > 2:
+                print('reduced_theta_p: ', reduced_theta_p)
+                print('delta_p: ', delta_p)
+
+            delta_st = delta_y + delta_p
+        else:
+            raise DesignError('can not handle linear design, resize footing')
+
+        dw.design_drift = reduced_theta_p + dw.theta_y
+
+        delta_ls = delta_st
+
+        displacements = delta_ls * dw.hm_factor
+
+        dw.delta_d, dw.mass_eff, dw.height_eff = dt.equivalent_sdof(dw.storey_mass_p_wall, displacements, dw.heights)
+        delta_y = dt.yield_displacement_wall(phi_y, dw.height_eff, dw.max_height)
+        dw.mu = dt.ductility(dw.delta_d, delta_y)
+        dw.xi = dt.equivalent_viscous_damping(dw.mu, mtype="concrete", btype="wall")
+        dw.eta = dt.reduction_factor(dw.xi)
+        dw.t_eff = dt.effective_period(dw.delta_d, dw.eta, dw.hz.corner_disp, dw.hz.corner_period)
+
+        if verbose > 1:
+            print('Delta_D: ', dw.delta_d)
+            print('Effective mass: ', dw.mass_eff)
+            print('Effective height: ', dw.height_eff)
+            print('Mu: ', dw.mu)
+            print('theta yield', dw.theta_y)
+            print('xi: ', dw.xi)
+            print('Reduction Factor: ', dw.eta)
+            print('t_eff', dw.t_eff)
+
+        if dw.t_eff > 0:
+            break
+        else:
+            if verbose > 1:
+                print("drift %.2f is not compatible" % reduced_theta_p)
+    k_eff = dt.effective_stiffness(dw.mass_eff, dw.t_eff)
+    dw.v_base = dt.design_base_shear(k_eff, dw.delta_d)
+    dw.storey_forces = dt.calculate_storey_forces(dw.storey_mass_p_wall, displacements, dw.v_base, btype='wall')
+    return dw
+
+
+def design_rc_wall_via_millen_et_al_2020(wb, hz, sl, fd, design_drift=0.025, **kwargs):
+    """
+    Displacement-based design of a concrete wall.
+
+    :param wb: WallBuilding object
+    :param hz: Hazard Object
+    :param design_drift: Design drift
+    :param kwargs:
+    :return: DesignedWall object
+    """
+    dw = em.DesignedSFSIRCWall(wb, hz, sl, fd)
+    dw.design_drift = design_drift
+    verbose = kwargs.get('verbose', dw.verbose)
+    dw.static_dbd_values()
+    print("udw: ", dw.sl.unit_dry_weight)
+    dw.static_values()
+
+    # add foundation to heights and masses
+    heights, storey_masses = dt.add_foundation(dw.heights, dw.storey_masses, dw.fd.height, dw.fd.mass)
+    dw.storey_mass_p_wall = storey_masses / dw.n_walls
+
+    # k = min(0.2 * (fu / fye - 1), 0.08)  # Eq 4.31b
+    k = min(0.15 * (dw.fu / dw.fye - 1), 0.06)  # Eq 6.5a from DDBD code
+    l_c = dw.max_height
+    long_db = dw.preferred_bar_diameter
+    l_sp = 0.022 * dw.fye * long_db / 1.0e6  # Eq 4.30
+    l_p = max(k * l_c + l_sp + 0.1 * dw.wall_depth, 2 * l_sp)
+    phi_y = dt.yield_curvature(dw.epsilon_y, dw.wall_depth, btype="wall")
+    delta_y = dt.yield_displacement_wall(phi_y, heights, dw.max_height)
+    phi_p = dw.phi_material - phi_y
+    # determine whether code limit or material strain governs
+    theta_ss_code = design_drift
+    dw.theta_y = dw.epsilon_y * dw.max_height / dw.wall_depth
+    theta_p_code = (theta_ss_code - dw.theta_y)
+    theta_p = min(theta_p_code, phi_p * l_p)
+
+    # Assume no torsional effects
+    increments = theta_p + dw.theta_y
+    for i in range(20):
+        reduced_theta_p = theta_p - increments * float(i) / 20
+        if reduced_theta_p > 0.0:
+            non_linear = 1
+
+            delta_p = reduced_theta_p * (dw.heights - (0.5 * l_p - l_sp))
+            delta_p = np.insert(delta_p, 0, 0)  # no plastic deformation at foundation
+            if verbose > 2:
+                print('reduced_theta_p: ', reduced_theta_p)
+                print('delta_p: ', delta_p)
+
+            delta_st = delta_y + delta_p
+        else:
+            raise DesignError('can not handle linear design, resize footing')
+
+        dw.design_drift = reduced_theta_p + dw.theta_y
+
+        delta_ls = delta_st
+
+        displacements = delta_ls * dw.hm_factor
+
+        dw.delta_d, dw.mass_eff, dw.height_eff = dt.equivalent_sdof(dw.storey_mass_p_wall, displacements, heights)
+        delta_y = dt.yield_displacement_wall(phi_y, dw.height_eff, dw.max_height)
+        dw.mu = dt.ductility(dw.delta_d, delta_y)
+        dw.xi = dt.equivalent_viscous_damping(dw.mu, mtype="concrete", btype="wall")
+        dw.eta = dt.reduction_factor(dw.xi)
+        dw.t_eff = dt.effective_period(dw.delta_d, dw.eta, dw.hz.corner_disp, dw.hz.corner_period)
+
+        if verbose > 1:
+            print('Delta_D: ', dw.delta_d)
+            print('Effective mass: ', dw.mass_eff)
+            print('Effective height: ', dw.height_eff)
+            print('Mu: ', dw.mu)
+            print('theta yield', dw.theta_y)
+            print('xi: ', dw.xi)
+            print('Reduction Factor: ', dw.eta)
+            print('t_eff', dw.t_eff)
+
+        if dw.t_eff > 0:
+            break
+        else:
+            if verbose > 1:
+                print("drift %.2f is not compatible" % reduced_theta_p)
+    k_eff = dt.effective_stiffness(dw.mass_eff, dw.t_eff)
+    dw.v_base = dt.design_base_shear(k_eff, dw.delta_d)
+    moment_f = dw.v_base * dw.height_eff
+    psi = 0.75 * np.tan(dw.sl.phi_r)
+    theta_f = calc_fd_rot_via_millen_et_al_2020(dw.k_f_0, dw.fd.length, dw.total_weight, dw.bearing_capacity, psi, moment_f,
+                                 dw.height_eff)
+    print("theta_f: ", theta_f)
+
+    # TODO: ADD calculation of rotation
+
+    dw.storey_forces = dt.calculate_storey_forces(dw.storey_mass_p_wall, displacements, dw.v_base, btype='wall')
+    return dw
 
 
 def run_frame_fixed():

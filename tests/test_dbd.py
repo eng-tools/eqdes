@@ -118,13 +118,16 @@ def test_dbd_sfsi_frame_via_millen_et_al_2018():
     fd.length = 5
     fd.width = 5.
     fd.depth = 0.8
+    fd.n_pads_l = 2
+    fd.n_pads_w = 2
 
     fd.pad.width = 1.4  # m
     fd.pad.length = 1.4  # m
     fd.pad.depth = 0.5  # m
     fd.pad.height = 0
-    fd.n_pads_l = 2
-    fd.n_pads_w = 2
+    fd.set_pad_pos_in_length_dir_as_equally_spaced()
+    fd.set_pad_pos_in_width_dir_as_equally_spaced()
+
     fd.mass = 0
     fd2 = fd.deepcopy()
 
@@ -245,6 +248,10 @@ def load_system(n_bays=2, n_storeys=6):
     fd.height = 1.0  # m
     fd.mass = 0.0  # kg
     pad = gf.size_footing_for_capacity(sp, np.max(col_loads), method='salgado', fos=3., depth=fd.depth)
+    fd.pad_length = pad.length
+    fd.pad_width = pad.width
+    fd.pad.depth = fd.depth
+    fd.pad.height = fd.height
     tie_beams_sect = sm.sections.RCBeamSection()
     tie_beams_sect.depth = fd.height
     tie_beams_sect.width = fd.height
@@ -252,14 +259,12 @@ def load_system(n_bays=2, n_storeys=6):
     tie_beams_sect.cracked_ratio = 0.6
     fd.tie_beam_sect_in_width_dir = tie_beams_sect
     fd.tie_beam_sect_in_length_dir = tie_beams_sect
-
-    if fd.ftype == "pad":
-        fd.n_pads_l = fb.n_cols  # Number of pads in length direction
-        fd.n_pads_w = fb.n_frames  # Number of pads in width direction
-    fd.pad_length = pad.length
-    fd.pad_width = pad.width
-    fd.pad.depth = fd.depth
-    fd.pad.height = fd.height
+    x = fb.get_column_positions()
+    x[0] = fd.pad_length / 2
+    x[-1] = fd.length - fd.pad_length / 2
+    fd.pad_pos_in_length_dir = x
+    fd.n_pads_w = fb.n_frames
+    fd.set_pad_pos_in_width_dir_as_equally_spaced()
 
     return fb, fd, sp, hz
 
@@ -272,61 +277,89 @@ def test_dbd_sfsi_frame_via_millen_et_al_2020():
     print('delta_f: ', designed_frame.delta_f)
     print(designed_frame.axial_load_ratio)
     assert np.isclose(designed_frame.axial_load_ratio, 4.54454554)
-    assert np.isclose(designed_frame.delta_ss, 0.1352084271)
+    assert np.isclose(designed_frame.delta_ss, 0.13432764512)
     assert np.isclose(designed_frame.delta_f, 0.0007801446), designed_frame.delta_f
 
 
-def test_case_study_wall_pbd_wall():
-    def create(save=0, show=1):
-        n_storeys = 6
-        wb = dm.WallBuilding(n_storeys)
-        wb.wall_width = 0.3  # m
-        wb.wall_depth = 3.4  # m
-        wb.interstorey_heights = 3.4 * np.ones(n_storeys)  # m
-        wb.n_walls = 1
-        wb.floor_length = 20 / 2  # m
-        wb.floor_width = 12 / 2  # m
-        g_load = 6000.  # Pa
-        q_load = 3000.  # Pa
-        eq_load_factor = 0.4
-        floor_pressure = g_load + eq_load_factor * q_load
-        wb.set_storey_masses_by_pressure(floor_pressure)
+def test_case_study_wall_pbd_wall_fixed_base():
+    n_storeys = 6
+    wb = dm.WallBuilding(n_storeys)
+    wb.wall_width = 0.3  # m
+    wb.wall_depth = 3.4  # m
+    wb.interstorey_heights = 3.4 * np.ones(n_storeys)  # m
+    wb.n_walls = 1
+    wb.floor_length = 20 / 2  # m
+    wb.floor_width = 12 / 2  # m
+    g_load = 6000.  # Pa
+    q_load = 3000.  # Pa
+    eq_load_factor = 0.4
+    floor_pressure = g_load + eq_load_factor * q_load
+    wb.set_storey_masses_by_pressure(floor_pressure)
 
-        fd = dm.RaftFoundation()
-        fd.height = 1.3
-        fd.length = 5.6  # m # from HDF
-        fd.width = 2.25  # m # from HDF
-        fd.depth = 0.0  # TODO: check this
-        fd.mass = 0.0
+    # hazard
+    hz = dm.Hazard()
+    hz.z_factor = 0.4  # Hazard factor
+    hz.r_factor = 1.0  # Return period factor
+    hz.n_factor = 1.0  # Near-fault factor
+    hz.magnitude = 7.5  # Magnitude of earthquake
+    hz.corner_period = 3.0  # s
+    hz.corner_acc_factor = 0.4
 
-        # soil properties from HDF
-        sl = dm.Soil()
-        sl.g_mod = 40e6  # Pa
-        sl.poissons_ratio = 0.3
-        sl.phi = 36.0  # degrees
-        # sl.phi_r = np.radians(sl.phi)
-        sl.cohesion = 0.0
-        sl.unit_dry_weight = 18000.  # TODO: check this
+    wb.material = sm.materials.ReinforcedConcreteMaterial()
+    dw = dbd.design_rc_wall(wb, hz, design_drift=0.025)
 
-        # hazard
-        hz = dm.Hazard()
-        hz.z_factor = 0.4  # Hazard factor
-        hz.r_factor = 1.0  # Return period factor
-        hz.n_factor = 1.0  # Near-fault factor
-        hz.magnitude = 7.5  # Magnitude of earthquake
-        hz.corner_period = 3.0  # s
-        hz.corner_acc_factor = 0.4
 
-        n_wall_eq = np.sum(wb.storey_masses) / wb.n_walls * 9.8
-        n_cap_from_hdf = 12.1e6  # N
-        n_wall_eq_from_hdf = 2.31e6  # N
+def test_case_study_wall_pbd_wall_w_sfsi():
+    n_storeys = 6
+    wb = dm.WallBuilding(n_storeys)
+    wb.wall_width = 0.3  # m
+    wb.wall_depth = 3.4  # m
+    wb.interstorey_heights = 3.4 * np.ones(n_storeys)  # m
+    wb.n_walls = 1
+    wb.floor_length = 20 / 2  # m
+    wb.floor_width = 12 / 2  # m
+    g_load = 6000.  # Pa
+    q_load = 3000.  # Pa
+    eq_load_factor = 0.4
+    floor_pressure = g_load + eq_load_factor * q_load
+    wb.set_storey_masses_by_pressure(floor_pressure)
 
-        # n_from_input_file = (4.0e2 + 1.905e3) * 1e3
-        alpha = 4.
+    fd = dm.RaftFoundation()
+    fd.height = 1.3
+    fd.length = 5.6  # m # from HDF
+    fd.width = 2.25  # m # from HDF
+    fd.depth = 0.0  # TODO: check this
+    fd.mass = 0.0
 
-        # dw = dbd.wall(wb, hz, design_drift=0.025)
-        dw = dbd.design_rc_wall(wb, hz, sl, fd, design_drift=0.025)
-        print(dw.delta_d)
+    # soil properties from HDF
+    sl = dm.Soil()
+    sl.g_mod = 40e6  # Pa
+    sl.poissons_ratio = 0.3
+    sl.phi = 36.0  # degrees
+    # sl.phi_r = np.radians(sl.phi)
+    sl.cohesion = 0.0
+    sl.unit_dry_weight = 18000.  # TODO: check this
+
+    # hazard
+    hz = dm.Hazard()
+    hz.z_factor = 0.4  # Hazard factor
+    hz.r_factor = 1.0  # Return period factor
+    hz.n_factor = 1.0  # Near-fault factor
+    hz.magnitude = 7.5  # Magnitude of earthquake
+    hz.corner_period = 3.0  # s
+    hz.corner_acc_factor = 0.4
+
+    n_wall_eq = np.sum(wb.storey_masses) / wb.n_walls * 9.8
+    n_cap_from_hdf = 12.1e6  # N
+    n_wall_eq_from_hdf = 2.31e6  # N
+
+    # n_from_input_file = (4.0e2 + 1.905e3) * 1e3
+    alpha = 4.
+
+    wb.material = sm.materials.ReinforcedConcreteMaterial()
+    # dw = dbd.wall(wb, hz, design_drift=0.025)
+    dw = dbd.design_rc_wall_via_millen_et_al_2020(wb, hz, sl, fd, design_drift=0.025)
+    print(dw.delta_d)
 
 
 def test_ddbd_wall_fixed():
