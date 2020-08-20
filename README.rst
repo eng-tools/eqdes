@@ -5,6 +5,16 @@ This package contains solvers for direct displacement-based design
 
 Major revision at version 0.3.0 - this package is still in alpha.
 
+Function and method naming conventions
+--------------------------------------
+
+
+* `calc_<property>`: A function that calculates a property,
+  if the calculation has multiple different implementations, then include the citation as
+  author and year as well `calc_<property>_<author>_<year>`
+* `design_<system-to-be-designed>` A function that implements a design procedure and returns a designed object
+* `assess_<system-to-be-designed>` A function that implements an assessment procedure and returns a assessed object
+
 Setting up tests
 ----------------
 

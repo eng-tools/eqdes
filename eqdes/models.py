@@ -196,7 +196,8 @@ class AssessedRCFrame(FrameBuilding):
 
     def __init__(self, fb, hz, verbose=0):
         super(AssessedRCFrame, self).__init__(n_bays=fb.n_bays, n_storeys=fb.n_storeys)  # run parent class initialiser function
-        self.concrete = fb.concrete
+        assert fb.material.type == 'reinforced_concrete'
+        self.concrete = fb.material
         self.__dict__.update(fb.__dict__)
         self.hz.__dict__.update(hz.__dict__)
         self.verbose = verbose
@@ -338,6 +339,8 @@ class AssessedSFSIRCFrame(AssessedRCFrame):
         self.zeta = 1.5
         if horz2vert_mass is not None:
             self.horz2vert_mass = horz2vert_mass
+        assert fb.material.type == 'reinforced_concrete'
+        self.concrete = fb.material
 
 
     def static_values(self):

@@ -16,7 +16,7 @@ def test_ddbd_frame_fixed_small():
     hz = dm.Hazard()
     ml.load_hazard_test_data(hz)
     fb = ml.initialise_frame_building_test_data()
-    frame_ddbd = ddbd.dbd_frame(fb, hz)
+    frame_ddbd = ddbd.design_rc_frame(fb, hz)
 
     assert isclose(frame_ddbd.delta_d, 0.2400, rel_tol=0.001), frame_ddbd.delta_d
     assert isclose(frame_ddbd.mass_eff, 67841.581, rel_tol=0.001), frame_ddbd.mass_eff
@@ -41,7 +41,7 @@ def test_ddbd_frame_consistent():
     ml.load_hazard_test_data(hz)
     ml.load_soil_test_data(sl)
     ml.load_raft_foundation_test_data(fd)
-    frame_ddbd = ddbd.dbd_frame(fb, hz)
+    frame_ddbd = ddbd.design_rc_frame(fb, hz)
     sl.override("g_mod", 1.0e10)  # make soil very stiff
     fd.height = 2.0  # add some height to the foundation
     frame_sfsi_dbd = ddbd.dbd_sfsi_frame_via_millen_et_al_2018(fb, hz, sl, fd, found_rot=1e-6)
@@ -83,7 +83,7 @@ def test_ddbd_frame_fixed_large():
 
     fb.storey_masses = np.array([488.0, 488.0, 488.0, 488.0, 411.0]) * 1e3
 
-    frame_ddbd = ddbd.dbd_frame(fb, hz, design_drift=design_drift)
+    frame_ddbd = ddbd.design_rc_frame(fb, hz, design_drift=design_drift)
 
     # StoreyForcesCheck1 = np.array([460402.85, 872342.25, 1235818.18, 1550830.66, 2158400.44])
     # assert isclose(frame_ddbd.v_base, 4889353.79)  # 6277794.38  # TODO: fix this
@@ -147,7 +147,7 @@ def test_dbd_sfsi_frame_via_millen_et_al_2018():
 
     design_drift = 0.02
 
-    frame_ddbd = ddbd.dbd_sfsi_frame_via_millen_et_al_2018(fb, hz, sl, fd, design_drift=design_drift, verbose=2)
+    frame_ddbd = ddbd.design_rc_frame_w_sfsi_via_millen_et_al_2018(fb, hz, sl, fd, design_drift=design_drift, verbose=2)
     assert np.isclose(frame_ddbd.delta_d, 0.08488596), frame_ddbd.delta_d
     assert np.isclose(frame_ddbd.theta_f, 0.0050136357), frame_ddbd.theta_f
 
@@ -262,7 +262,7 @@ def load_system(n_bays=2, n_storeys=6):
 def test_dbd_sfsi_frame_via_millen_et_al_2020():
 
     fb, fd, sp, hz = load_system(n_storeys=3, n_bays=2)
-    designed_frame = ddbd.dbd_sfsi_frame_via_millen_et_al_2020(fb, hz, sp, fd, verbose=0)
+    designed_frame = ddbd.design_rc_frame_w_sfsi_via_millen_et_al_2020(fb, hz, sp, fd, verbose=0)
     print('delta_ss: ', designed_frame.delta_ss)
     print('delta_f: ', designed_frame.delta_f)
     print(designed_frame.axial_load_ratio)
@@ -320,7 +320,7 @@ def test_case_study_wall_pbd_wall():
         alpha = 4.
 
         # dw = dbd.wall(wb, hz, design_drift=0.025)
-        dw = ddbd.wall(wb, hz, sl, fd, design_drift=0.025)
+        dw = ddbd.design_rc_wall(wb, hz, sl, fd, design_drift=0.025)
         print(dw.delta_d)
 
 
@@ -329,7 +329,7 @@ def test_ddbd_wall_fixed():
     hz = dm.Hazard()
     ml.load_hazard_test_data(hz)
     wb = ml.initialise_wall_building_test_data()
-    wall_dbd = ddbd.wall(wb, hz)
+    wall_dbd = ddbd.design_rc_wall(wb, hz)
 
     assert isclose(wall_dbd.delta_d, 0.339295, rel_tol=0.001), wall_dbd.delta_d
     assert isclose(wall_dbd.mass_eff, 59429.632, rel_tol=0.001), wall_dbd.mass_eff
@@ -349,26 +349,26 @@ def test_calculate_rotation_via_millen_et_al_2020():
     l_in = 3.0
     n_load = 300.
     n_cap = 3000.
-    theta = ddbd.calculate_rotation_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom, h_eff)
+    theta = ddbd.calc_fd_rot_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom, h_eff)
     assert np.isclose(theta, 0.0053710398), theta
 
     n_load = 2000.
     n_cap = 3000.
     l_in = 5.0
     mom = 100.
-    theta = ddbd.calculate_rotation_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom, h_eff)
+    theta = ddbd.calc_fd_rot_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom, h_eff)
     assert np.isclose(theta, 0.0011910855), theta
 
     # very large moment
     mom = 3000.
-    theta = ddbd.calculate_rotation_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom, h_eff)
+    theta = ddbd.calc_fd_rot_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom, h_eff)
     assert theta is None
 
     # n_load equal to n_cap
     mom = 10
     n_load = 300.
     n_cap = 300.
-    theta = ddbd.calculate_rotation_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom, h_eff)
+    theta = ddbd.calc_fd_rot_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom, h_eff)
     assert theta is None
 
 

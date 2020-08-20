@@ -8,9 +8,10 @@ from eqdes import ddbd_tools as dt
 from eqdes import nonlinear_foundation as nf
 
 
-def dba_frame(fb, hz, theta_max, otm_max, **kwargs):
+def assess_rc_frame(fb, hz, theta_max, otm_max, **kwargs):
     """
     Displacement-based assessment of a frame building
+
     :param fb: FrameBuilding Object
     :param hz: Hazard Object
     :param theta_max: [degrees], maximum structural interstorey drift
@@ -19,7 +20,7 @@ def dba_frame(fb, hz, theta_max, otm_max, **kwargs):
     :return:
     """
 
-    af = sm.AssessedFrame(fb, hz)
+    af = sm.AssessedRCFrame(fb, hz)
     af.otm_max = otm_max
     af.theta_max = theta_max
     verbose = kwargs.get('verbose', af.verbose)
@@ -67,7 +68,7 @@ def dba_frame(fb, hz, theta_max, otm_max, **kwargs):
     return af
 
 
-def frame_sfsi(fb, hz, sl, fd, theta_max, otm_max, found_rot=0.00001, mcbs=None, **kwargs):
+def assess_rc_frame_w_sfsi_via_millen_et_al_2020(fb, hz, sl, fd, theta_max, otm_max, found_rot=0.00001, mcbs=None, **kwargs):
     """
     Displacement-based assessment of a frame building considering SFSI
 
@@ -82,7 +83,7 @@ def frame_sfsi(fb, hz, sl, fd, theta_max, otm_max, found_rot=0.00001, mcbs=None,
     :return:
     """
     horz2vert_mass = kwargs.get('horz2vert_mass', 1.0)
-    af = sm.AssessedSFSIFrame(fb, hz, sl, fd)
+    af = sm.AssessedSFSIRCFrame(fb, hz, sl, fd)
     af.otm_max = otm_max
     af.theta_max = theta_max
     af.theta_f = found_rot
@@ -188,4 +189,4 @@ def run_frame_dba_fixed():
     hz = ml.load_hazard_sample_data(hz)
     ml.load_frame_building_sample_data(fb)
 
-    designed_frame = dba_frame(fb, hz, theta_max=0.035, otm_max=3e5, verbose=0)
+    designed_frame = assess_rc_frame(fb, hz, theta_max=0.035, otm_max=3e5, verbose=0)

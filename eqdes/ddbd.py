@@ -1,6 +1,6 @@
 
 import numpy as np
-
+import sfsimodels
 from sfsimodels import output as mo
 
 from eqdes import models as sm
@@ -8,9 +8,10 @@ from eqdes import ddbd_tools as dt
 from eqdes import nonlinear_foundation as nf
 from eqdes.extensions.exceptions import DesignError
 from eqdes import moment_equilibrium
+import geofound as gf
 
 
-def calculate_rotation_via_millen_et_al_2020(k_rot_el, l_in, n_load, n_cap, psi, ms, h_eff):
+def calc_fd_rot_via_millen_et_al_2020(k_rot_el, l_in, n_load, n_cap, psi, ms, h_eff, k_exterior=0.0):
     if n_load >= n_cap:
         return None
     h_0 = 2.0 * k_rot_el
@@ -18,14 +19,23 @@ def calculate_rotation_via_millen_et_al_2020(k_rot_el, l_in, n_load, n_cap, psi,
     if inv_lamb >= 1:
         return None
     inv_k_plastic = 1. / (h_0 * np.log(1. / inv_lamb))
-    theta_f = ms * (1. / k_rot_el + inv_k_plastic)
+    theta_f = ms * (1. / (k_rot_el + k_exterior) + inv_k_plastic)
     if theta_f < 0:
         return None
     # theta_f = ms * (1. / k_rot_el)
     return theta_f
 
 
-def dbd_frame(fb, hz, design_drift=0.02, **kwargs):
+def design_rc_frame(fb, hz, design_drift=0.02, **kwargs):
+    """
+    Displacement-based design of a reinforced concrete frame building.
+
+    :param fb: sfsimodels.FrameBuilding
+    :param hz:
+    :param design_drift:
+    :param kwargs:
+    :return:
+    """
 
     df = sm.DesignedRCFrame(fb, hz)
     df.design_drift = design_drift
@@ -64,9 +74,9 @@ def dbd_frame(fb, hz, design_drift=0.02, **kwargs):
     return df
 
 
-def wall(wb, hz, design_drift=0.025, **kwargs):
+def design_rc_wall(wb, hz, design_drift=0.025, **kwargs):
     """
-    Displacement-based design of a concrete wall.
+    Displacement-based design of a reinforced concrete wall.
 
     :param wb: WallBuilding object
     :param hz: Hazard Object
@@ -144,7 +154,21 @@ def wall(wb, hz, design_drift=0.025, **kwargs):
     return dw
 
 
-def dbd_sfsi_frame_via_millen_et_al_2020(fb, hz, sl, fd, design_drift=0.02, found_rot=0.00001,
+def check_local_footing_rotations(sl, pad, m_foot, h_eff, tie_beam):
+    ip_axis = 'length'
+    k_f_0_pad = gf.stiffness.calc_rotational_via_gazetas_1991(sl, pad, ip_axis=ip_axis)
+    l_in = getattr(pad, ip_axis)
+    psi = 0.75 * np.tan(sl.phi_r)
+
+    k_ties = 1e7  # use beam formula
+    rot_ipad = calc_fd_rot_via_millen_et_al_2020(k_f_0_pad, l_in, pad.n_load, pad.n_ult, psi, m_foot, h_eff, k_ties)
+
+    return rot_ipad
+    # TODO: check exterior columns
+    # TODO: check if pad rotation exceeds global rotation + base hinge rotation
+
+
+def design_rc_frame_w_sfsi_via_millen_et_al_2020(fb, hz, sl, fd, design_drift=0.02, found_rot=0.00001,
                                          found_rot_tol=0.02, found_rot_iterations=20, **kwargs):
     import geofound as gf
     df = sm.DesignedSFSIFrame(fb, hz, sl, fd)
@@ -161,7 +185,7 @@ def dbd_sfsi_frame_via_millen_et_al_2020(fb, hz, sl, fd, design_drift=0.02, foun
     # for iteration in range(found_rot_iterations):  # iterate the foundation rotation
     #     df.delta_fshear = 0
     disp_compatible = False
-
+    fd_compatible = False
     for i in range(100):
         fd_compatible = False
         mu_reduction_factor = 1.0 - float(i) / 100
@@ -226,8 +250,8 @@ def dbd_sfsi_frame_via_millen_et_al_2020(fb, hz, sl, fd, design_drift=0.02, foun
                 hf = df.height_eff
                 prev_found_rot = temp_found_rot
 
-                temp_found_rot = calculate_rotation_via_millen_et_al_2020(df.k_f_0, df.fd.length, df.total_weight, n_ult,
-                                                                     psi, moment_f, df.height_eff)
+                temp_found_rot = calc_fd_rot_via_millen_et_al_2020(df.k_f_0, df.fd.length, df.total_weight, n_ult,
+                                                                   psi, moment_f, df.height_eff)
                 if abs(prev_delta_fshear - temp_delta_fshear) / df.delta_d < 0.01 and abs(prev_found_rot - temp_found_rot) * hf / df.delta_d < 0.01:
                     fd_compatible = True
                     break
@@ -236,8 +260,7 @@ def dbd_sfsi_frame_via_millen_et_al_2020(fb, hz, sl, fd, design_drift=0.02, foun
 
             else:
                 break
-                if verbose > 1:
-                    print("drift %.2f is not compatible" % theta_c)
+
         if disp_compatible:
             break
     if not fd_compatible:
@@ -251,42 +274,32 @@ def dbd_sfsi_frame_via_millen_et_al_2020(fb, hz, sl, fd, design_drift=0.02, foun
     df.delta_fshear = temp_delta_fshear
 
     df.theta_f = found_rot
-    mom_ratio = 0.6
-    moment_beams_cl, moment_column_bases, axial_seismic = moment_equilibrium.assess(df, df.storey_forces, mom_ratio)
-    pad = df.fd.pad
-    n_ult_pad = df.soil_q * pad.area
-    col_loads = df.get_column_vert_loads()
-    ext_nloads = max(col_loads[0])
-    int_nloads = np.max(col_loads[1:-1])
+
     w_pads = 1
     if w_pads:
-        ip_axis = 'length'
-        k_f_0_pad = gf.stiffness.calc_rotational_via_gazetas_1991(sl, pad, ip_axis=ip_axis)
-        l_in = getattr(pad, ip_axis)
-        # TODO: consider tie beams
-
+        mom_ratio = 0.6
+        moment_beams_cl, moment_column_bases, axial_seismic = moment_equilibrium.assess(df, df.storey_forces, mom_ratio)
         h_eff = df.interstorey_heights[0] * mom_ratio + fd.height
+        pad = df.fd.pad
+        pad.n_ult = df.soil_q * pad.area
+        col_loads = df.get_column_vert_loads()
+        ext_nloads = max(col_loads[0])
+        int_nloads = np.max(col_loads[1:-1])
 
-        k_ties = 1e7  # use beam formula
-        rot_ipad = 0.0
-        for rr in range(10):
-            if rot_ipad is None:
-                rot_ipad = 0.02
-            m_ties = k_ties * rot_ipad
-            # extrapolated to base
-            m_f_int = np.max(moment_column_bases[1:-1]) * h_eff / df.interstorey_heights[0] - m_ties
-            rot_ipad = calculate_rotation_via_millen_et_al_2020(k_f_0_pad, l_in, int_nloads, n_ult_pad, psi, m_f_int, h_eff)
-            print('rot_ipad: ', rot_ipad, found_rot)
-        df.m_f_int = m_f_int
-        if rot_ipad is None:  # First try moment ratio of 0.5
-            raise ValueError("Design failed - pad moment demand exceeds capacity")  # footing should be increased or design drift increased
-        # TODO: check exterior columns
-        # TODO: check if pad rotation exceeds global rotation + base hinge rotation
+        m_foot_int = np.max(moment_column_bases[1:-1]) * h_eff / df.interstorey_heights[0]
+        pad.n_load = int_nloads
+        rot_ipad = check_local_footing_rotations(sl, pad, m_foot_int, h_eff, tie_beam=0)
+        # Exterior footings
+        m_foot_ext = np.max(moment_column_bases[np.array([0, -1])]) * h_eff / df.interstorey_heights[0]
+        pad.n_load = ext_nloads
+        rot_epad = check_local_footing_rotations(sl, pad, m_foot_ext, h_eff, tie_beam=0)
+        if rot_ipad is None or rot_epad is None or max([rot_ipad, rot_epad]) - found_rot > theta_c - df.theta_y:  # First try moment ratio of 0.5
+            raise DesignError("Design failed - pad moment demand exceeds capacity")  # footing should be increased or design drift increased
 
     return df
 
 
-def dbd_sfsi_frame_via_millen_et_al_2018(fb, hz, sl, fd, design_drift=0.02, found_rot=0.00001, found_rot_tol=0.02, found_rot_iterations=20, **kwargs):
+def design_rc_frame_w_sfsi_via_millen_et_al_2018(fb, hz, sl, fd, design_drift=0.02, found_rot=0.00001, found_rot_tol=0.02, found_rot_iterations=20, **kwargs):
 
     df = sm.DesignedSFSIFrame(fb, hz, sl, fd)
     df.design_drift = design_drift
@@ -388,7 +401,7 @@ def run_frame_fixed():
     hz = sm.Hazard()
     ml.load_hazard_test_data(hz)
     fb = ml.initialise_frame_building_test_data()
-    designed_frame = dbd_frame(fb, hz)
+    designed_frame = design_rc_frame(fb, hz)
     # print(designed_frame.n_seismic_frames)
     para = [mo.output_to_table(hz)]
     para.append(mo.output_to_table(fb))
@@ -408,7 +421,7 @@ def run_frame_sfsi():
     ml.load_hazard_test_data(hz)
     ml.load_soil_test_data(sp)
     ml.load_raft_foundation_test_data(fd)
-    designed_frame = dbd_sfsi_frame(fb, hz, sp, fd, verbose=0)
+    designed_frame = dbd_sfsi_frame_via_millen_et_al_2018(fb, hz, sp, fd, verbose=0)
     para = mo.output_to_table(designed_frame, olist="all")
     para += mo.output_to_table(fd)
     para += mo.output_to_table(sp)
