@@ -215,8 +215,8 @@ def load_system(n_bays=2, n_storeys=6):
     hz.corner_period = 4.0  # s
     hz.corner_acc_factor = 0.55
     sp = sm.Soil()
-    sp.g_mod = 10.0e6  # [Pa]
-    sp.phi = 35.0  # [degrees]
+    sp.g_mod = 25.0e6  # [Pa]
+    sp.phi = 32.0  # [degrees]
     sp.unit_dry_weight = 17000  # [N/m3]
     sp.unit_sat_weight = 18000  # [N/m3]
     sp.unit_weight_water = 9800  # [N/m3]
@@ -233,16 +233,25 @@ def load_system(n_bays=2, n_storeys=6):
     fb.floor_width = 12.0  # m
     fb.n_seismic_frames = 3
     fb.n_gravity_frames = 0
-    fb.set_storey_masses_by_pressure(8e3)  # Pa
+    fb.set_storey_masses_by_pressure(9e3)  # Pa
     col_loads = fb.get_column_vert_loads()
+    fb.horz2vert_mass = 1
+    fb.set_beam_prop('depth', 0.6, 'all')
 
     fd = sm.PadFoundation()
     fd.width = fb.floor_width  # m
     fd.length = fb.floor_length  # m
-    fd.depth = 0.8 + 0.1 * fb.n_storeys  # m
+    fd.depth = 0.4 + 0.1 * fb.n_storeys  # m
     fd.height = 1.0  # m
     fd.mass = 0.0  # kg
     pad = gf.size_footing_for_capacity(sp, np.max(col_loads), method='salgado', fos=3., depth=fd.depth)
+    tie_beams_sect = sm.sections.RCBeamSection()
+    tie_beams_sect.depth = fd.height
+    tie_beams_sect.width = fd.height
+    tie_beams_sect.rc_mat = sm.materials.ReinforcedConcreteMaterial()
+    tie_beams_sect.cracked_ratio = 0.6
+    fd.tie_beam_sect_in_width_dir = tie_beams_sect
+    fd.tie_beam_sect_in_length_dir = tie_beams_sect
 
     if fd.ftype == "pad":
         fd.n_pads_l = fb.n_cols  # Number of pads in length direction
@@ -251,10 +260,6 @@ def load_system(n_bays=2, n_storeys=6):
     fd.pad_width = pad.width
     fd.pad.depth = fd.depth
     fd.pad.height = fd.height
-    fb.set_storey_masses_by_pressure(8e3)  # Pa
-    fb.horz2vert_mass = 1
-
-    fb.set_beam_prop('depth', 0.6, 'all')
 
     return fb, fd, sp, hz
 
@@ -266,9 +271,9 @@ def test_dbd_sfsi_frame_via_millen_et_al_2020():
     print('delta_ss: ', designed_frame.delta_ss)
     print('delta_f: ', designed_frame.delta_f)
     print(designed_frame.axial_load_ratio)
-    assert np.isclose(designed_frame.axial_load_ratio, 4.7847976462)
-    assert np.isclose(designed_frame.delta_ss, 0.14170439)
-    assert np.isclose(designed_frame.delta_f, 0.001570054), designed_frame.delta_f
+    assert np.isclose(designed_frame.axial_load_ratio, 4.54454554)
+    assert np.isclose(designed_frame.delta_ss, 0.1352084271)
+    assert np.isclose(designed_frame.delta_f, 0.0007801446), designed_frame.delta_f
 
 
 def test_case_study_wall_pbd_wall():
@@ -349,6 +354,8 @@ def test_calculate_rotation_via_millen_et_al_2020():
     l_in = 3.0
     n_load = 300.
     n_cap = 3000.
+    theta = dbd.calc_fd_rot_via_millen_et_al_2020_alt_form(k_rot, l_in, n_load, n_cap, psi, mom, h_eff)
+    assert np.isclose(theta, 0.0053710398), theta
     theta = dbd.calc_fd_rot_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom, h_eff)
     assert np.isclose(theta, 0.0053710398), theta
 
@@ -368,9 +375,28 @@ def test_calculate_rotation_via_millen_et_al_2020():
     mom = 10
     n_load = 300.
     n_cap = 300.
-    theta = dbd.calc_fd_rot_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom, h_eff)
+    theta = dbd.calc_fd_rot_via_millen_et_al_2020_alt_form(k_rot, l_in, n_load, n_cap, psi, mom, h_eff)
     assert theta is None
 
+
+def test_calc_fd_rot_via_millen_et_al_2020_w_tie_beams():
+    k_rot = 1000.0e2
+    k_tbs = 100.0e2
+    psi = 0.4
+    h_eff = 3.0
+    l_in = 3.0
+    n_load = 300.
+    n_cap = 3000.
+
+    mom = 308.5
+
+    theta_w_tbs = dbd.calc_fd_rot_via_millen_et_al_2020_w_tie_beams(k_rot, l_in, n_load, n_cap, psi, mom,
+                                                                          h_eff,
+                                                                          k_tbs=k_tbs)
+
+    mom_tbs = theta_w_tbs * k_tbs
+    rots_adj = dbd.calc_fd_rot_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom - mom_tbs, h_eff)
+    assert np.isclose(theta_w_tbs, rots_adj, rtol=0.01)
 
 
 if __name__ == '__main__':

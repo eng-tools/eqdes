@@ -11,7 +11,7 @@ from eqdes import moment_equilibrium
 import geofound as gf
 
 
-def calc_fd_rot_via_millen_et_al_2020(k_rot_el, l_in, n_load, n_cap, psi, ms, h_eff, k_exterior=0.0):
+def calc_fd_rot_via_millen_et_al_2020_alt_form(k_rot_el, l_in, n_load, n_cap, psi, ms, h_eff):
     if n_load >= n_cap:
         return None
     h_0 = 2.0 * k_rot_el
@@ -19,11 +19,55 @@ def calc_fd_rot_via_millen_et_al_2020(k_rot_el, l_in, n_load, n_cap, psi, ms, h_
     if inv_lamb >= 1:
         return None
     inv_k_plastic = 1. / (h_0 * np.log(1. / inv_lamb))
-    theta_f = ms * (1. / (k_rot_el + k_exterior) + inv_k_plastic)
+    theta_f = ms * (1. / k_rot_el + inv_k_plastic)
     if theta_f < 0:
         return None
     # theta_f = ms * (1. / k_rot_el)
     return theta_f
+
+
+def calc_moment_capacity_via_millen_et_al_2020(l_in, n_load, n_cap, psi, h_eff):
+    f_a = 1 / np.sqrt(1. / (1 - n_load / n_cap) ** 2 + (l_in / (2 * psi * h_eff)) ** 2)
+    return n_load * l_in / 2 * f_a
+
+
+def calc_fd_rot_via_millen_et_al_2020(k_rot_el, l_in, n_load, n_cap, psi, m_f, h_eff, f_p=0.5):
+    m_cap = calc_moment_capacity_via_millen_et_al_2020(l_in, n_load, n_cap, psi, h_eff)
+    rot = np.where(m_f > m_cap, None, m_f * (np.log(m_cap / m_f) + f_p) / (k_rot_el * np.log(m_cap / m_f)))
+    if not hasattr(m_f, '__len__'):
+        return np.asscalar(rot)
+    return rot
+
+
+def calc_fd_rot_via_millen_et_al_2020_w_tie_beams(k_rot_el, l_in, n_load, n_cap, psi, ms, h_eff, k_tbs=0.0):
+    m_cap = calc_moment_capacity_via_millen_et_al_2020(l_in, n_load, n_cap, psi, h_eff)
+    m_tb_extreme = k_tbs * 0.03  # 3% rotation
+    if ms > m_cap + m_tb_extreme:
+        return None
+    m_f = max([ms - m_tb_extreme, ms * 0.5])
+    theta = 1000
+    if k_tbs == 0:
+        return calc_fd_rot_via_millen_et_al_2020(k_rot_el, l_in, n_load, n_cap, psi, m_f, h_eff)
+    m_f_max = m_cap
+    m_f_min = 0
+    prev_m_f = m_f
+
+    for i in range(100):
+        prev_theta = theta
+        theta = calc_fd_rot_via_millen_et_al_2020(k_rot_el, l_in, n_load, n_cap, psi, m_f, h_eff)
+        m_tb = k_tbs * theta
+        m_r = m_f + m_tb
+        if m_r < ms:
+            m_f_min = m_f
+            m_f = (m_f + m_f_max) / 2
+        else:
+            m_f_max = m_f
+            m_f = (m_f + m_f_min) / 2
+        if abs(theta - prev_theta) / theta < 0.01:
+            return theta
+
+        if i == 99:
+            return None
 
 
 def design_rc_frame(fb, hz, design_drift=0.02, **kwargs):
@@ -159,7 +203,7 @@ def check_local_footing_rotations(sl, pad, m_foot, h_eff, ip_axis, k_ties=0):
     l_in = getattr(pad, ip_axis)
     psi = 0.75 * np.tan(sl.phi_r)
 
-    rot_ipad = calc_fd_rot_via_millen_et_al_2020(k_f_0_pad, l_in, pad.n_load, pad.n_ult, psi, m_foot, h_eff, k_ties)
+    rot_ipad = calc_fd_rot_via_millen_et_al_2020_w_tie_beams(k_f_0_pad, l_in, pad.n_load, pad.n_ult, psi, m_foot, h_eff, k_ties)
 
     return rot_ipad
     # TODO: check exterior columns
@@ -273,11 +317,12 @@ def design_rc_frame_w_sfsi_via_millen_et_al_2020(fb, hz, sl, fd, design_drift=0.
 
     df.theta_f = found_rot
 
-    if fd.type == 'pad_foundation':
+    if fd.type == 'pad_foundation - frwgergrgetrtbrtb':
         assert isinstance(fd, sm.PadFoundation)
         ip_axis = 'length'
         mom_ratio = 0.6
         moment_beams_cl, moment_column_bases, axial_seismic = moment_equilibrium.assess(df, df.storey_forces, mom_ratio)
+        # TODO: need to account for minimum column base moment which shifts mom_ratio
         h_eff = df.interstorey_heights[0] * mom_ratio + fd.height
         pad = df.fd.pad
         pad.n_ult = df.soil_q * pad.area
@@ -292,17 +337,34 @@ def design_rc_frame_w_sfsi_via_millen_et_al_2020(fb, hz, sl, fd, design_drift=0.
         if tb_sect is not None:
             assert isinstance(tb_sect, sm.sections.RCBeamSection)
             # See supporting_docs/tie-beam-stiffness-calcs.pdf
-            k_ties = tb_length / (6 * tb_sect.i_rot_ww_cracked * tb_sect.rc_mat.e_mod_conc)
+            k_ties = (6 * tb_sect.i_rot_ww_cracked * tb_sect.rc_mat.e_mod_conc) / tb_length
         else:
             k_ties = 0
         rot_ipad = check_local_footing_rotations(sl, pad, m_foot_int, h_eff, ip_axis=ip_axis, k_ties=2*k_ties)
         # Exterior footings
+
+        if rot_ipad is None:  # First try moment ratio of 0.5
+            m_cap = pad.n_load * getattr(pad, ip_axis) / 2 * (1 - pad.n_load / pad.n_ult)
+            l_in = getattr(pad, ip_axis)
+            m_cap = calc_moment_capacity_via_millen_et_al_2020(l_in, pad.n_load, pad.n_ult, psi, h_eff)
+            raise DesignError(f"Design failed - interior footing moment demand ({m_foot_int/1e3:.3g})"
+                              f" kNm exceeds capacity (~{m_cap/1e3:.3g} kNm)")
         m_foot_ext = np.max(moment_column_bases[np.array([0, -1])]) * h_eff / df.interstorey_heights[0]
         pad.n_load = ext_nloads
         rot_epad = check_local_footing_rotations(sl, pad, m_foot_ext, h_eff, ip_axis=ip_axis, k_ties=k_ties)
-        if rot_ipad is None or rot_epad is None or max([rot_ipad, rot_epad]) - found_rot > theta_c - df.theta_y:  # First try moment ratio of 0.5
-            pass
-            # raise DesignError("Design failed - pad moment demand exceeds capacity")  # footing should be increased or design drift increased
+        if rot_epad is None:
+            m_cap = pad.n_load * getattr(pad, ip_axis) / 2 * (1 - pad.n_load / pad.n_ult)
+            raise DesignError(f"Design failed - interior footing moment demand ({m_foot_ext/1e3:.3g})"
+                              f" kNm exceeds capacity (~{m_cap/1e3:.3g} kNm)")
+        if max([rot_ipad, rot_epad]) - found_rot > theta_c - df.theta_y:
+            # footing should be increased or design drift increased
+            pad_rot = max([rot_ipad, rot_epad])
+            plastic_rot = theta_c - df.theta_y
+            raise DesignError(f"Design failed - footing rotation ({pad_rot:.3g}) "
+                              f"exceeds plastic rotation (~{plastic_rot:.3g})")
+
+
+
 
     return df
 
