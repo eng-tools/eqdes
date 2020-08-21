@@ -91,7 +91,9 @@ def set_beam_face_moments_from_centreline_demands(df, moment_beams_cl):  # TODO:
     for ns in range(df.n_storeys):
         beams = df.get_beams_at_storey(ns)
         for beam in beams:
-            beam.sections = [sm.sections.RCBeamSection(), sm.sections.RCBeamSection()]
+            existing_sects = beam.sections
+            if len(existing_sects) != 2:
+                beam.sections = [existing_sects[0].deepcopy(), existing_sects[0].deepcopy()]
         # for nb in range(df.n_bays):
     # Assumes symmetric
     df.set_beam_prop('mom_cap_p', moment_beams_cl[:, :, :1], sections=[0], repeat='none')
@@ -107,12 +109,14 @@ def set_column_base_moments_from_demands(df, moment_column_bases):
 
     columns = df.columns[0]
     for i, column in enumerate(columns):
-        column.sections = [sm.sections.RCBeamSection(),  # TODO: should be RCColumnSection
-                           sm.sections.RCBeamSection()]
+        existing_sects = column.sections
+        if len(existing_sects) != 2:
+            column.sections = [existing_sects[0].deepcopy(),  # TODO: should be RCColumnSection
+                           existing_sects[0].deepcopy()]
         column.sections[0].mom_cap = moment_column_bases[i]
 
 
-def calc_otm_capacity(df):
+def calc_otm_capacity(df):  # and account for tie beams !!! and m_foots=None, h_foot=0
     m_col_bases = df.get_column_base_moments()
     m_f_beams = df.get_beam_face_moments(signs=('p', 'n'))
     v_beams = -np.diff(m_f_beams[:, :]).reshape((df.n_storeys, df.n_bays)) / df.bay_lengths[np.newaxis, :]

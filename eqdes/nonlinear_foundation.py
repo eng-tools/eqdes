@@ -258,6 +258,8 @@ def calc_fd_rot_via_millen_et_al_2020_w_tie_beams(k_rot_el, l_in, n_load, n_cap,
     for i in range(100):
         prev_theta = theta
         theta = calc_fd_rot_via_millen_et_al_2020(k_rot_el, l_in, n_load, n_cap, psi, m_f, h_eff)
+        if theta is None:
+            theta = 0.031
         m_tb = k_tbs * theta
         m_r = m_f + m_tb
         if m_r < ms:

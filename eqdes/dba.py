@@ -3,9 +3,17 @@ import numpy as np
 from sfsimodels import loader as ml
 from sfsimodels import output as mo
 
-from eqdes import models as sm
+from eqdes import models as em
+import sfsimodels as sm
 from eqdes import dbd_tools as dt
 from eqdes import nonlinear_foundation as nf
+from eqdes import moment_equilibrium
+import geofound as gf
+
+from eqdes.extensions.exceptions import DesignError
+
+from eqdes.nonlinear_foundation import calc_moment_capacity_via_millen_et_al_2020, calc_fd_rot_via_millen_et_al_2020, \
+    calc_fd_rot_via_millen_et_al_2020_w_tie_beams
 
 
 def assess_rc_frame(fb, hz, theta_max, otm_max, **kwargs):
@@ -20,7 +28,7 @@ def assess_rc_frame(fb, hz, theta_max, otm_max, **kwargs):
     :return:
     """
 
-    af = sm.AssessedRCFrame(fb, hz)
+    af = em.AssessedRCFrame(fb, hz)
     af.otm_max = otm_max
     af.theta_max = theta_max
     verbose = kwargs.get('verbose', af.verbose)
@@ -68,7 +76,7 @@ def assess_rc_frame(fb, hz, theta_max, otm_max, **kwargs):
     return af
 
 
-def assess_rc_frame_w_sfsi_via_millen_et_al_2020(dfb, hz, sl, fd, theta_max, otm_max, found_rot=0.00001, mcbs=None, **kwargs):
+def assess_rc_frame_w_sfsi_via_millen_et_al_2020(dfb, hz, sl, fd, theta_max, mcbs=None, **kwargs):
     """
     Displacement-based assessment of a frame building considering SFSI
 
@@ -83,10 +91,10 @@ def assess_rc_frame_w_sfsi_via_millen_et_al_2020(dfb, hz, sl, fd, theta_max, otm
     :return:
     """
     horz2vert_mass = kwargs.get('horz2vert_mass', 1.0)
-    af = sm.AssessedSFSIRCFrame(dfb, hz, sl, fd)
-    af.otm_max = otm_max
+    af = em.AssessedSFSIRCFrame(dfb, hz, sl, fd)
+
     af.theta_max = theta_max
-    af.theta_f = found_rot
+
     verbose = kwargs.get('verbose', af.verbose)
 
     af.static_values()
@@ -105,6 +113,8 @@ def assess_rc_frame_w_sfsi_via_millen_et_al_2020(dfb, hz, sl, fd, theta_max, otm
     iterations_ductility = kwargs.get('iterations_ductility', ductility_reduction_factors)
     iterations_rotation = kwargs.get('iterations_rotation', 20)
     theta_c = theta_max
+    # if m_col_base is greater than m_foot then
+    otm_max = moment_equilibrium.calc_otm_capacity(af)
 
     for i in range(iterations_ductility):
         mu_reduction_factor = 1.0 - float(i) / ductility_reduction_factors
@@ -168,14 +178,72 @@ def assess_rc_frame_w_sfsi_via_millen_et_al_2020(dfb, hz, sl, fd, theta_max, otm
         else:
             if verbose > 1:
                 print("drift %.2f is not compatible" % theta_c)
+    if fd.type == 'pad_foundation':
+        # assert isinstance(fd, em.PadFoundation)
+        ip_axis = 'length'
+
+        af.storey_forces = dt.calculate_storey_forces(af.storey_mass_p_frame, displacements, af.v_base, btype='frame')
+        # moment_beams_cl, moment_column_bases, axial_seismic = moment_equilibrium.assess(af, af.storey_forces, mom_ratio)
+        mom_ratio = 0.6  # TODO: need to validate !
+        moment_column_bases = af.get_column_base_moments()
+        # TODO: need to account for minimum column base moment which shifts mom_ratio
+        h_eff = af.interstorey_heights[0] * mom_ratio + fd.height
+        pad = af.fd.pad
+        pad.n_ult = af.soil_q * pad.area
+        col_loads = af.get_column_vert_loads()
+        ext_nloads = max(col_loads[0])
+        int_nloads = np.max(col_loads[1:-1])
+
+        m_foot_int = np.max(moment_column_bases[1:-1]) * h_eff / af.interstorey_heights[0]
+        pad.n_load = int_nloads
+        tb_sect = getattr(fd, f'tie_beam_sect_in_{ip_axis}_dir')
+        tb_length = (fd.length - (fd.pad_length * fd.n_pads_l)) / (fd.n_pads_l - 1)
+        if tb_sect is not None:
+            assert isinstance(tb_sect, sm.sections.RCBeamSection)
+            # See supporting_docs/tie-beam-stiffness-calcs.pdf
+            k_ties = (6 * tb_sect.i_rot_ww_cracked * tb_sect.rc_mat.e_mod_conc) / tb_length
+        else:
+            k_ties = 0
+        l_in = getattr(pad, ip_axis)
+        k_f_0_pad = gf.stiffness.calc_rotational_via_gazetas_1991(sl, pad, ip_axis=ip_axis)
+        rot_ipad = calc_fd_rot_via_millen_et_al_2020_w_tie_beams(k_f_0_pad, l_in, int_nloads, pad.n_ult, psi,
+                                                                 m_foot_int, h_eff, 2 * k_ties)
+        # TODO: change to cycle through all
+        # Exterior footings
+        if rot_ipad is None:  # First try moment ratio of 0.5
+            # m_cap = pad.n_load * getattr(pad, ip_axis) / 2 * (1 - pad.n_load / pad.n_ult)
+            m_cap = calc_moment_capacity_via_millen_et_al_2020(l_in, pad.n_load, pad.n_ult, psi, h_eff)
+            raise DesignError(f"Design failed - interior footing moment demand ({m_foot_int/1e3:.3g})"
+                              f" kNm exceeds capacity (~{m_cap/1e3:.3g} kNm)")
+        m_foot_ext = np.max(moment_column_bases[np.array([0, -1])]) * h_eff / af.interstorey_heights[0]
+        pad.n_load = ext_nloads
+        # rot_epad = check_local_footing_rotations(sl, pad, m_foot_ext, h_eff, ip_axis=ip_axis, k_ties=k_ties)
+        rot_epad = calc_fd_rot_via_millen_et_al_2020_w_tie_beams(k_f_0_pad, l_in, ext_nloads, pad.n_ult, psi,
+                                                                 m_foot_ext, h_eff, k_ties)
+        if rot_epad is None:
+            m_cap = pad.n_load * getattr(pad, ip_axis) / 2 * (1 - pad.n_load / pad.n_ult)
+            raise DesignError(f"Design failed - interior footing moment demand ({m_foot_ext/1e3:.3g})"
+                              f" kNm exceeds capacity (~{m_cap/1e3:.3g} kNm)")
+        if max([rot_ipad, rot_epad]) - found_rot > theta_c - af.theta_y:
+            # footing should be increased or design drift increased
+            pad_rot = max([rot_ipad, rot_epad])
+            plastic_rot = theta_c - af.theta_y
+            raise DesignError(f"Design failed - footing rotation ({pad_rot:.3g}) "
+                              f"exceeds plastic rotation (~{plastic_rot:.3g})")
+        af.m_foot = np.zeros(af.n_bays + 1)
+        af.m_foot[0] = m_foot_ext
+        af.m_foot[-1] = m_foot_ext
+        af.m_foot[1:-1] = m_foot_int
+
+    af.theta_f = found_rot
     af.assessed_drift = theta_c
     af.storey_forces = dt.calculate_storey_forces(af.storey_mass_p_frame, displacements, af.v_base, btype='frame')
     return af
 
 
 def run_frame_dba_fixed():
-    fb = sm.FrameBuilding()
-    hz = sm.Hazard()
+    fb = em.FrameBuilding()
+    hz = em.Hazard()
     hz = ml.load_hazard_sample_data(hz)
     ml.load_frame_building_sample_data(fb)
 
