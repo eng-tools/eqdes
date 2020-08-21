@@ -32,7 +32,7 @@ def assess_rc_frame(fb, hz, theta_max, otm_max, **kwargs):
         theta_c = theta_max * mu_reduction_factor
         displacements = dt.displacement_profile_frame(theta_c, af.heights, af.hm_factor)
         af.delta_max, af.mass_eff, af.height_eff = dt.equivalent_sdof(af.storey_mass_p_frame, displacements, af.heights)
-        af.theta_y = dt.conc_frame_yield_drift(af.fye, af.concrete.youngs_steel, af.av_bay, af.av_beam)
+        af.theta_y = dt.conc_frame_yield_drift(af.fye, af.concrete.e_mod_steel, af.av_bay, af.av_beam)
         af.delta_y = dt.yield_displacement(af.theta_y, af.height_eff)
         af.mu = dt.ductility(af.delta_max, af.delta_y)
         if i == 0:
@@ -112,7 +112,7 @@ def assess_rc_frame_w_sfsi_via_millen_et_al_2020(fb, hz, sl, fd, theta_max, otm_
         displacements = dt.displacement_profile_frame(theta_c, heights, af.hm_factor, foundation=True,
                                                     fd_height=af.fd.height, theta_f=af.theta_f)
         af.delta_max, af.mass_eff, af.height_eff = dt.equivalent_sdof(af.storey_mass_p_frame, displacements, heights)
-        af.theta_y = dt.conc_frame_yield_drift(af.fye, af.concrete.youngs_steel, af.av_bay, af.av_beam)
+        af.theta_y = dt.conc_frame_yield_drift(af.fye, af.concrete.e_mod_steel, af.av_bay, af.av_beam)
         af.delta_y = dt.yield_displacement(af.theta_y, af.height_eff - af.fd.height)
         approx_delta_f = af.theta_f * af.height_eff
         af.delta_ss = af.delta_max - approx_delta_f
