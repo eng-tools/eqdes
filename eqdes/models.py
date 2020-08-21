@@ -373,6 +373,7 @@ class AssessedSFSIRCFrame(AssessedRCFrame):
         bearing_capacity = nf.bearing_capacity(self.fd.area, self.soil_q)
         weight_per_frame = sum(self.storey_masses) / (self.n_seismic_frames + self.n_gravity_frames) * self.g
         self.axial_load_ratio = bearing_capacity / self.total_weight
+        self.fd_bearing_capacity = bearing_capacity
         if self.axial_load_ratio < 1.0:
             raise DesignError("Static failure expected. Axial load ratio: %.3f" % self.axial_load_ratio)
 

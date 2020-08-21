@@ -85,7 +85,7 @@ def assess(fb, storey_forces, mom_ratio=0.6, verbose=0):
     return moment_beams_cl, moment_column_bases, axial_seismic
 
 
-def set_beam_face_moments_from_centreline_demands(df, moment_beams_cl):
+def set_beam_face_moments_from_centreline_demands(df, moment_beams_cl):  # TODO: currently beam moment are centreline!
     import sfsimodels as sm
     assert isinstance(df, sm.FrameBuilding)
     for ns in range(df.n_storeys):

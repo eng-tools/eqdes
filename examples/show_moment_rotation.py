@@ -3,6 +3,8 @@ import numpy as np
 import eqdes
 from bwplot import cbox
 
+import eqdes.nonlinear_foundation
+
 
 def create():
     k_rot = 1000.0e2
@@ -17,7 +19,7 @@ def create():
     rots = []
     for mom in moms:
 
-        theta = eqdes.dbd.calc_fd_rot_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom, h_eff)
+        theta = eqdes.nonlinear_foundation.calc_fd_rot_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom, h_eff)
         rots.append(theta)
 
     plt.plot(rots, moms)
@@ -41,17 +43,18 @@ def create_w_k_ext():
     rots_adj = []
     for i, mom in enumerate(moms):
         print(i, mom)
-        theta = eqdes.dbd.calc_fd_rot_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom, h_eff)
+        theta = eqdes.nonlinear_foundation.calc_fd_rot_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom, h_eff)
         rots.append(theta)
-        theta_w_ext = eqdes.dbd.calc_fd_rot_via_millen_et_al_2020_w_tie_beams(k_rot, l_in, n_load, n_cap, psi, mom, h_eff,
-                                                            k_tbs=k_ext)
+        theta_w_ext = eqdes.nonlinear_foundation.calc_fd_rot_via_millen_et_al_2020_w_tie_beams(k_rot, l_in, n_load, n_cap, psi, mom, h_eff,
+                                                                                               k_tbs=k_ext)
         rots_w_ext.append(theta_w_ext)
         if theta_w_ext is None:
             mom_ext.append(None)
             rots_adj.append(None)
         else:
             mom_ext.append(theta_w_ext * k_ext)
-            rots_adj.append(eqdes.dbd.calc_fd_rot_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom - mom_ext[-1], h_eff))
+            rots_adj.append(
+                eqdes.nonlinear_foundation.calc_fd_rot_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom - mom_ext[-1], h_eff))
 
     plt.plot(rots, moms)
     plt.plot(rots_w_ext, moms, ls='--')
@@ -76,8 +79,10 @@ def create_mom_rot_vs_alt_form():
         rots_alt = []
 
         for mom in moms:
-            rots.append(eqdes.dbd.calc_fd_rot_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom, h_eff))
-            rots_alt.append(eqdes.dbd.calc_fd_rot_via_millen_et_al_2020_alt_form(k_rot, l_in, n_load, n_cap, psi, mom, h_eff))
+            rots.append(
+                eqdes.nonlinear_foundation.calc_fd_rot_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom, h_eff))
+            rots_alt.append(
+                eqdes.nonlinear_foundation.calc_fd_rot_via_millen_et_al_2020_alt_form(k_rot, l_in, n_load, n_cap, psi, mom, h_eff))
 
         plt.plot(rots, moms, c=cbox(0))
         plt.plot(rots_alt, moms, ls='--', c=cbox(1))

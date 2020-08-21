@@ -130,23 +130,13 @@ def assess_rc_frame_w_sfsi_via_millen_et_al_2020(dfb, hz, sl, fd, theta_max, otm
         moment_f = otm
         found_rot_tol = 0.00001
         bhr = (af.fd.width / af.height_eff)
-        for j in range(iterations_rotation):
-            norm_rot = found_rot / af.theta_pseudo_up
-            cor_norm_rot = nf.calculate_corrected_normalised_rotation(norm_rot, bhr)
-            if verbose > 1:
-                print("soil_q: ", af.soil_q)
-                print("axial load ratio: ", af.axial_load_ratio)
-                print("theta_f: ", af.theta_f)
-                print('cor_norm_rot: ', cor_norm_rot)
-            stiffness_ratio = nf.foundation_rotation_stiffness_ratio(cor_norm_rot)
-            k_f_eff = af.k_f_0 * stiffness_ratio
-            temp_found_rot = found_rot
+        n_ult = af.fd_bearing_capacity
+        psi = 0.75 * np.tan(sl.phi_r)
+        found_rot = nf.calc_fd_rot_via_millen_et_al_2020(af.k_f_0, af.fd.length, af.total_weight, n_ult,
+                                                      psi, moment_f, af.height_eff)
+        norm_rot = found_rot / af.theta_pseudo_up
+        cor_norm_rot = nf.calculate_corrected_normalised_rotation(norm_rot, bhr)
 
-            found_rot = moment_f / k_f_eff
-
-            iteration_diff = (abs(temp_found_rot - found_rot) / found_rot)
-            if iteration_diff < found_rot_tol:
-                break
         eta_frot = nf.foundation_rotation_reduction_factor(cor_norm_rot)
         af.delta_frot = af.theta_f * af.height_eff
         af.delta_f = af.delta_frot + af.delta_fshear
