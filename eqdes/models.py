@@ -125,6 +125,20 @@ class DesignedRCFrame(FrameBuilding):
         self.inputs += self._extra_class_variables
         self.beam_group_size = 2
 
+    def get_column_base_moments(self):
+        cols = self.columns[0, :]
+        return np.array([col.sections[0].mom_cap for col in cols])
+
+    def get_beam_face_moments(self, signs=('p', 'p')):
+        m_face = [[] for i in range(self.n_storeys)]
+        beams = self.beams
+        for ns in range(self.n_storeys):
+            for nb in range(self.n_bays):
+                m_face[ns].append([getattr(beams[ns][nb].sections[0], f'mom_cap_{signs[0]}'),
+                                   getattr(beams[ns][nb].sections[-1], f'mom_cap_{signs[1]}')])
+
+        return np.array(m_face)
+
 
 class DesignedRCWall(WallBuilding):
     method = "standard"

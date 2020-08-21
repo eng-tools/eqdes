@@ -68,12 +68,12 @@ def assess_rc_frame(fb, hz, theta_max, otm_max, **kwargs):
     return af
 
 
-def assess_rc_frame_w_sfsi_via_millen_et_al_2020(fb, hz, sl, fd, theta_max, otm_max, found_rot=0.00001, mcbs=None, **kwargs):
+def assess_rc_frame_w_sfsi_via_millen_et_al_2020(dfb, hz, sl, fd, theta_max, otm_max, found_rot=0.00001, mcbs=None, **kwargs):
     """
     Displacement-based assessment of a frame building considering SFSI
 
 
-    :param fb: FrameBuilding Object
+    :param dfb: DesignedRCFrameBuilding Object
     :param hz: Hazard Object
     :param theta_max: [degrees], maximum structural interstorey drift
     :param otm_max: [N],Maximum overturning moment
@@ -83,7 +83,7 @@ def assess_rc_frame_w_sfsi_via_millen_et_al_2020(fb, hz, sl, fd, theta_max, otm_
     :return:
     """
     horz2vert_mass = kwargs.get('horz2vert_mass', 1.0)
-    af = sm.AssessedSFSIRCFrame(fb, hz, sl, fd)
+    af = sm.AssessedSFSIRCFrame(dfb, hz, sl, fd)
     af.otm_max = otm_max
     af.theta_max = theta_max
     af.theta_f = found_rot

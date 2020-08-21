@@ -225,7 +225,7 @@ def design_rc_frame_w_sfsi_via_millen_et_al_2020(fb, hz, sl, fd, design_drift=0.
 
     df.theta_f = found_rot
 
-    if fd.type == 'pad_foundation - frwgergrgetrtbrtb':
+    if fd.type == 'pad_foundation':
         assert isinstance(fd, sm.PadFoundation)
         ip_axis = 'length'
         mom_ratio = 0.6

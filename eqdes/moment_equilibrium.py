@@ -6,22 +6,23 @@ from eqdes.extensions.exceptions import DesignError
 def assess(fb, storey_forces, mom_ratio=0.6, verbose=0):
     """
     Distribute the applied loads to a frame structure
-    :param fb: FrameBuilding object
-    :param mom_ratio: ratio of overturning moment that is resisted by column base hinges
-    :param verbose: level of verbosity
-    :return: beam moments, column base moments, seismic axial loads in exterior columns
+
+    Parameters
+    ----------
+    fb: FrameBuilding object
+    mom_ratio: float
+        ratio of overturning moment that is resisted by column base hinges
+    verbose:
+        level of verbosity
+
+    Returns
+    -------
+    [beam moments, column base moments, seismic axial loads in exterior columns]
     """
     if hasattr(fb, 'column_depth') and np.std(fb.column_depth) > 1e-2:
         print('Does not work with odd column depths')
         print(fb.column_depth)
         raise NotImplementedError
-
-    height = np.zeros(fb.n_storeys)
-    for i in range(fb.n_storeys):
-        if i == 0:
-            height[i] = fb.interstorey_heights[i]
-        else:
-            height[i] = height[i - 1] + fb.interstorey_heights[i]
 
     mom_running = 0
     mom_storey = np.zeros(fb.n_storeys)
@@ -32,8 +33,7 @@ def assess(fb, storey_forces, mom_ratio=0.6, verbose=0):
             v_storey[-1 - i] = storey_forces[-1 - i]
         else:
             v_storey[-1 - i] = v_storey[-i] + storey_forces[-1 - i]
-        mom_storey[-1 - i] = (v_storey[-1 - i] *
-            fb.interstorey_heights[-1 - i] + mom_running)
+        mom_storey[-1 - i] = (v_storey[-1 - i] * fb.interstorey_heights[-1 - i] + mom_running)
         mom_running = mom_storey[-1 - i]
 
     cumulative_total_shear = sum(v_storey)
@@ -85,4 +85,46 @@ def assess(fb, storey_forces, mom_ratio=0.6, verbose=0):
     return moment_beams_cl, moment_column_bases, axial_seismic
 
 
+def set_beam_face_moments_from_centreline_demands(df, moment_beams_cl):
+    import sfsimodels as sm
+    assert isinstance(df, sm.FrameBuilding)
+    for ns in range(df.n_storeys):
+        beams = df.get_beams_at_storey(ns)
+        for beam in beams:
+            beam.sections = [sm.sections.RCBeamSection(), sm.sections.RCBeamSection()]
+        # for nb in range(df.n_bays):
+    # Assumes symmetric
+    df.set_beam_prop('mom_cap_p', moment_beams_cl[:, :, :1], sections=[0], repeat='none')
+    df.set_beam_prop('mom_cap_p', -moment_beams_cl[:, :, 1:], sections=[1], repeat='none')
+    # Assumes symmetric
+    df.set_beam_prop('mom_cap_n', -moment_beams_cl[:, :, :1], sections=[0], repeat='none')
+    df.set_beam_prop('mom_cap_n', moment_beams_cl[:, :, 1:], sections=[1], repeat='none')
+
+
+def set_column_base_moments_from_demands(df, moment_column_bases):
+    import sfsimodels as sm
+    assert isinstance(df, sm.FrameBuilding)
+
+    columns = df.columns[0]
+    for i, column in enumerate(columns):
+        column.sections = [sm.sections.RCBeamSection(),  # TODO: should be RCColumnSection
+                           sm.sections.RCBeamSection()]
+        column.sections[0].mom_cap = moment_column_bases[i]
+
+
+def calc_otm_capacity(df):
+    m_col_bases = df.get_column_base_moments()
+    m_f_beams = df.get_beam_face_moments(signs=('p', 'n'))
+    v_beams = -np.diff(m_f_beams[:, :]).reshape((df.n_storeys, df.n_bays)) / df.bay_lengths[np.newaxis, :]
+    # Assume contra-flexure at centre of beam
+    a_loads = np.zeros((df.n_storeys, df.get_n_cols()))
+    a_loads[:, :-1] += v_beams
+    a_loads[:, 1:] += -v_beams
+    col_axial_loads = np.sum(a_loads, axis=0)
+    x_cols = df.get_column_positions()
+    otm_beams = -np.sum(x_cols * col_axial_loads)
+    otm_total = otm_beams + np.sum(m_col_bases)
+    return otm_total
+    # print('v_beams: ')
+    # print(v_beams)
 
