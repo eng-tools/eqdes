@@ -2,24 +2,37 @@ import numpy as np
 import os
 
 
-class BeamSection(object):
+class BeamSectionDesigner(object):
     '''
     This object designs beam cross-sections
     '''
 
-    def __init__(self, M_star, Beam_depth, Beam_width, fc, fy, Min_Column_depth, given_prefered_bar, prefered_cover,
+    def __init__(self, m_demand, depth, width, f_c, f_y, min_col_depth, preferred_bar, preferred_cover,
                  layer_spacing, **kwargs):
-        '''
+        """
         Constructor
-        '''
-        self.M_star = M_star
-        self.Beam_depth = Beam_depth
-        self.Beam_width = Beam_width
-        self.fc = fc
-        self.fy = fy
-        self.Min_Column_depth = Min_Column_depth
-        self.given_prefered_bar = given_prefered_bar
-        self.prefered_cover = prefered_cover
+
+        Parameters
+        ----------
+        m_demand
+        depth
+        width
+        f_c
+        f_y
+        min_col_depth
+        preferred_bar
+        preferred_cover
+        layer_spacing
+        kwargs
+        """
+        self.m_demand = m_demand
+        self.depth = depth
+        self.width = width
+        self.fc = f_c
+        self.fy = f_y
+        self.Min_Column_depth = min_col_depth
+        self.preferred_bar = preferred_bar
+        self.preferred_cover = preferred_cover
         self.layer_spacing = layer_spacing
         self.verbose = kwargs.get('verbose', 0)
         self.SectionName = kwargs.get('section_name', '')
@@ -27,17 +40,17 @@ class BeamSection(object):
 
     def design(self):
 
-        prefered_bar = self.given_prefered_bar
-        M_star = self.M_star
+        preferred_bar = self.preferred_bar
+        m_demand = self.m_demand
 
         design_complete = 0
         considered_covers = [0.05, 0.06, 0.04, 0.07]
 
         # Section: PROVIDED INFO
-        if M_star[0] < 0.38 * M_star[1]:  # As'>=0.38As CL 9.4.3.4
-            M_star[0] = 0.38 * M_star[1]
-        if M_star[1] < 0.38 * M_star[0]:
-            M_star[1] = 0.38 * M_star[0]
+        if m_demand[0] < 0.38 * m_demand[1]:  # As'>=0.38As CL 9.4.3.4
+            m_demand[0] = 0.38 * m_demand[1]
+        if m_demand[1] < 0.38 * m_demand[0]:
+            m_demand[1] = 0.38 * m_demand[0]
 
         # Varied info:
         phi = 0.85
@@ -53,35 +66,35 @@ class BeamSection(object):
 
         bar_arrangement = [[], []]
         for rot in range(2):
-            As_approx = self.M_star[rot] / (phi * self.fy * (self.Beam_depth * J))
+            As_approx = self.m_demand[rot] / (phi * self.fy * (self.depth * J))
 
             if self.verbose == 1:
                 print('As_approx: ', As_approx)
-            c = As_approx * self.fy / (alpha * beta * self.fc * self.Beam_width)
+            c = As_approx * self.fy / (alpha * beta * self.fc * self.width)
             a = beta * c / 2
-            d = self.Beam_depth - (0.06 + 0.065 + 0.06) / 2
+            d = self.depth - (0.06 + 0.065 + 0.06) / 2
             lever = d - a
 
             bar_options = []
             counter = 0 - 1
-            Force_req = self.M_star[rot] / (phi * lever)
+            Force_req = self.m_demand[rot] / (phi * lever)
 
-            c = Force_req / (alpha * beta * self.fc * self.Beam_width)
+            c = Force_req / (alpha * beta * self.fc * self.width)
             a = beta * c / 2
-            d = self.Beam_depth - (0.06 + 0.065 + 0.06) / 2
+            d = self.depth - (0.06 + 0.065 + 0.06) / 2
             lever = d - a
-            Force_req = self.M_star[rot] / (phi * lever)
+            Force_req = self.m_demand[rot] / (phi * lever)
             if self.verbose == 1:
                 print('Force required', Force_req)
-            c = Force_req / (alpha * beta * self.fc * self.Beam_width)
+            c = Force_req / (alpha * beta * self.fc * self.width)
 
             for choice in range(len(considered_covers)):
                 cover = considered_covers[choice]
 
                 for i in range(1, n_sizes - 1):
                     counter += 1
-                    Location1 = cover + np.ceil(db[i + 1] / 2 * 1e3) / 1e3
-                    Location2 = Location1 + self.layer_spacing
+                    loc0 = cover + np.ceil(db[i + 1] / 2 * 1e3) / 1e3
+                    loc1 = loc0 + self.layer_spacing
                     bar_options.append([])
 
                     # iterating over adding one smaller bar
@@ -133,7 +146,7 @@ class BeamSection(object):
                         # #steel ratio
                         As_tot = bar_options[i][j][0] * db[i] ** 2 * np.pi / 4 + bar_options[i][j][1] * db[
                             i + 1] ** 2 * np.pi / 4 + bar_options[i][j][2] * db[i + 2] ** 2 * np.pi / 4
-                        p_steel = As_tot / (self.Beam_width * self.Beam_depth)
+                        p_steel = As_tot / (self.width * self.depth)
                         # #min steel ratio CL 9.4.3.4
                         p_min = np.sqrt(self.fc) / (4 * self.fy)
                         if p_steel > p_min:
@@ -171,7 +184,7 @@ class BeamSection(object):
                             print('Failed:', db[i + 1], bar_options[i][j], ' Bar diameter too big')
                             print('test disabled')
 
-                        # #hook length
+                        # hook length
                         required_in_length = max(8 * largest_db, 0.2)
 
                         check[3] = 1
@@ -194,12 +207,10 @@ class BeamSection(object):
                             break
                         else:
                             # spacing
-                            bars_p_layer = ((self.Beam_width - 2 * cover) / (db[i] + 0.060))
+                            bars_p_layer = ((self.width - 2 * cover) / (db[i] + 0.060))
                             n_bars = sum(bar_options[i][j])
                             number_layers = n_bars / bars_p_layer
-                            # print('Number of layers required: ',number_layers)
                             if n_bars > 2 and number_layers < 2.4:
-                                # check[2]=1 #number of bars is suitable
                                 if number_layers < 1.3:
                                     if self.verbose == 1:
                                         print('One layer of bars')
@@ -222,9 +233,9 @@ class BeamSection(object):
                                             print('Not_working')
                                             raise ValueError()
 
-                                        bar_arrangement[rot].append([Layer[0], Layer[1], Location1, Location2])
+                                        bar_arrangement[rot].append([Layer[0], Layer[1], loc0, loc1])
                                         if self.verbose == 1:
-                                            print('Bar arrangement: ', [Layer[0], Layer[1], Location1, Location2])
+                                            print('Bar arrangement: ', [Layer[0], Layer[1], loc0, loc1])
                                     elif np.mod(bar_options[i][j][1], 2) == 1 and np.mod(bar_options[i][j][extra_b],
                                                                                          2) == 1:
                                         if self.verbose == 1:
@@ -250,9 +261,9 @@ class BeamSection(object):
 
                                         Layer[0] = np.array(Layer[0])
                                         Layer[1] = np.array(Layer[1])
-                                        bar_arrangement[rot].append([Layer[0], Layer[1], Location1, Location2])
+                                        bar_arrangement[rot].append([Layer[0], Layer[1], loc0, loc1])
                                         if self.verbose == 1:
-                                            print('Bar arrangement: ', [Layer[0], Layer[1], Location1, Location2])
+                                            print('Bar arrangement: ', [Layer[0], Layer[1], loc0, loc1])
                                 else:
                                     if self.verbose == 1:
                                         print('need two layers of bars')
@@ -281,9 +292,9 @@ class BeamSection(object):
                                             raise ValueError()
 
                                         bar_arrangement[rot].append(
-                                            [np.array(Layer[0]), np.array(Layer[1]), Location1, Location2])
+                                            [np.array(Layer[0]), np.array(Layer[1]), loc0, loc1])
                                         if self.verbose == 1:
-                                            print('Bar arrangement: ', [Layer[0], Layer[1], Location1, Location2])
+                                            print('Bar arrangement: ', [Layer[0], Layer[1], loc0, loc1])
                                     elif np.mod(bar_options[i][j][1], 2) == 0 and np.mod((bar_options[i][j][extra_b]),
                                                                                          4) == 0:
                                         if self.verbose == 1:
@@ -306,9 +317,9 @@ class BeamSection(object):
 
                                         Layer[0] = np.array(Layer[0])
                                         Layer[1] = np.array(Layer[1])
-                                        bar_arrangement[rot].append([Layer[0], Layer[1], Location1, Location2])
+                                        bar_arrangement[rot].append([Layer[0], Layer[1], loc0, loc1])
                                         if self.verbose == 1:
-                                            print('Bar arrangement: ', [Layer[0], Layer[1], Location1, Location2])
+                                            print('Bar arrangement: ', [Layer[0], Layer[1], loc0, loc1])
                                     elif np.mod(bar_options[i][j][1], 2) == 0 and np.mod((bar_options[i][j][extra_b]),
                                                                                          2) == 0:
                                         if self.verbose == 1:
@@ -335,9 +346,9 @@ class BeamSection(object):
 
                                         Layer[0] = np.array(Layer[0])
                                         Layer[1] = np.array(Layer[1])
-                                        bar_arrangement[rot].append([Layer[0], Layer[1], Location1, Location2])
+                                        bar_arrangement[rot].append([Layer[0], Layer[1], loc0, loc1])
                                         if self.verbose == 1:
-                                            print('Bar arrangement: ', [Layer[0], Layer[1], Location1, Location2])
+                                            print('Bar arrangement: ', [Layer[0], Layer[1], loc0, loc1])
                                     elif np.mod(bar_options[i][j][1], 2) == 0:
                                         if self.verbose == 1:
                                             print(
@@ -363,9 +374,9 @@ class BeamSection(object):
 
                                         Layer[0] = np.array(Layer[0])
                                         Layer[1] = np.array(Layer[1])
-                                        bar_arrangement[rot].append([Layer[0], Layer[1], Location1, Location2])
+                                        bar_arrangement[rot].append([Layer[0], Layer[1], loc0, loc1])
                                         if self.verbose == 1:
-                                            print('Bar arrangement: ', [Layer[0], Layer[1], Location1, Location2])
+                                            print('Bar arrangement: ', [Layer[0], Layer[1], loc0, loc1])
                                     # ODD number of main bars and ODD number of main bars
                                     elif np.mod(bar_options[i][j][extra_b], 2) == 1:
                                         if self.verbose == 1:
@@ -419,9 +430,9 @@ class BeamSection(object):
 
                                         Layer[0] = np.array(Layer[0])
                                         Layer[1] = np.array(Layer[1])
-                                        bar_arrangement[rot].append([Layer[0], Layer[1], Location1, Location2])
+                                        bar_arrangement[rot].append([Layer[0], Layer[1], loc0, loc1])
                                         if self.verbose == 1:
-                                            print('Bar arrangement: ', [Layer[0], Layer[1], Location1, Location2])
+                                            print('Bar arrangement: ', [Layer[0], Layer[1], loc0, loc1])
                                     else:
                                         if self.verbose == 1:
                                             print('No more bar arrangements available')
@@ -432,15 +443,15 @@ class BeamSection(object):
             for rot in range(2):
                 print('For rot ', rot, ' options available: %i' % len(bar_arrangement[rot]))
                 if len(bar_arrangement[rot]) == 0:
-                    print('M_stress ratio: ', self.M_star[rot] / self.Beam_width / self.Beam_depth ** 2 / self.fc)
+                    print('M_stress ratio: ', self.m_demand[rot] / self.width / self.depth ** 2 / self.fc)
 
                 for attempt in range(len(bar_arrangement[rot])):
                     count = 0
                     for i in range(len(bar_arrangement[rot][attempt][0])):
-                        if bar_arrangement[rot][attempt][0][i] == prefered_bar:
+                        if bar_arrangement[rot][attempt][0][i] == preferred_bar:
                             count += 1
                     for i in range(len(bar_arrangement[rot][attempt][1])):
-                        if bar_arrangement[rot][attempt][1][i] == prefered_bar:
+                        if bar_arrangement[rot][attempt][1][i] == preferred_bar:
                             count += 1
                     score[rot].append(count)
 
@@ -448,10 +459,10 @@ class BeamSection(object):
                 print('SCORE: ', score)
             for vals in score:
                 if max(vals) == 0:
-                    print('no design with prefered bar size')
+                    print('no design with preferred bar size')
                     # get next preferred size
                     db_list = [0.010, 0.012, 0.016, 0.020, 0.025, 0.032]
-                    pb = np.round(prefered_bar, 3)
+                    pb = np.round(preferred_bar, 3)
                     db_ind = 100000
                     for dd in range(len(db_list)):
                         print(dd, pb)
@@ -461,7 +472,7 @@ class BeamSection(object):
                     print('db_list: ', db_list)
 
                     # db_ind = db_list.index(pb)
-                    prefered_bar = db[db_ind - 1]
+                    preferred_bar = db[db_ind - 1]
                 else:
                     break
 
@@ -472,7 +483,7 @@ class BeamSection(object):
         BEAMPROPS = []
         LX = []
         MCAP = []
-        for rot in range(2):  # len(self.M_star)):
+        for rot in range(2):  # len(self.m_demand)):
             if len(bar_arrangement[rot]) == 0:
                 space_pass = 0
             for attempt in range(len(bar_arrangement[rot])):
@@ -492,34 +503,34 @@ class BeamSection(object):
                     As_fy[layer] = sum(Layer[layer] ** 2 * np.pi / 4 * self.fy)
 
                 force_T = sum(As_fy)
-                c_block = force_T / (self.Beam_width * alpha * beta * self.fc)
+                c_block = force_T / (self.width * alpha * beta * self.fc)
                 # print('c block: ', c_block
 
                 Moment_cap = 0
                 for layer in range(2):
                     Moment_cap = Moment_cap + phi * As_fy[layer] * (
-                                self.Beam_depth - Beam_props[layer + 2] - c_block * beta / 2)
+                                self.depth - Beam_props[layer + 2] - c_block * beta / 2)
                 if self.verbose == 1:
                     print('selected: ', select)
-                    print('Moment Capacity: ', Moment_cap, 'Demand: ', self.M_star[rot])
-                if Moment_cap < 1.05 * self.M_star[rot] and Moment_cap > 0.97 * self.M_star[rot]:
+                    print('Moment Capacity: ', Moment_cap, 'Demand: ', self.m_demand[rot])
+                if Moment_cap < 1.05 * self.m_demand[rot] and Moment_cap > 0.97 * self.m_demand[rot]:
                     check[0] = 1
                 else:
                     # if self.verbose==1:
                     print('Failed moment check: ', ' Moment Capacity: %.1fkNm' % (Moment_cap / 1e3),
-                          'Demand: %.1fkNm   %.1f%%' % (self.M_star[rot] / 1e3, Moment_cap / self.M_star[rot] * 100))
+                          'Demand: %.1fkNm   %.1f%%' % (self.m_demand[rot] / 1e3, Moment_cap / self.m_demand[rot] * 100))
 
                 # ##spacing check
                 # spacing must be equal to or greater than max(db) or 25mm CL 8.31)
                 min_width0 = sum(Layer[0]) + (len(Layer[0]) - 1) * max(Layer[0]) + 2 * cover
                 min_width1 = sum(Layer[1]) + (len(Layer[1]) - 1) * max(Layer[1]) + 2 * cover
-                if self.Beam_width > max(min_width0, min_width1):
+                if self.width > max(min_width0, min_width1):
                     check[1] = 1
                 else:
                     if self.verbose == 1:
                         print('Failed on check CL 8.31')
 
-                spacing = (self.Beam_width - 2 * cover) / (len(Beam_props[0]) - 1)
+                spacing = (self.width - 2 * cover) / (len(Beam_props[0]) - 1)
                 if len(Beam_props[0]) == len(Beam_props[1]):
                     # even top and bottom, make same spacing
                     for layer in range(2):
@@ -566,7 +577,7 @@ class BeamSection(object):
                 if space_pass == 1 and sum(check) == 2:
                     design_complete = 1
                     print('Layout rotation: ', str(rot), ' Moment Capacity: %.1fkNm' % (Moment_cap / 1000),
-                          'Demand: %.1fkNm   %.1f%%' % (self.M_star[rot] / 1000, Moment_cap / self.M_star[rot] * 100),
+                          'Demand: %.1fkNm   %.1f%%' % (self.m_demand[rot] / 1000, Moment_cap / self.m_demand[rot] * 100),
                           ' ACCEPTED')
                     break
                 else:
@@ -617,11 +628,8 @@ class BeamSection(object):
             for layer in range(2):  # CHANGE THIS
                 bar_label = {}
                 if rot == 1:
-                    Beam_props[layer + 2] = self.Beam_depth - Beam_props[layer + 2]
+                    Beam_props[layer + 2] = self.depth - Beam_props[layer + 2]
                 for i in range(len(Beam_props[layer])):
-                    # draw reinforcing
-                    x_bar = np.zeros((rad))
-                    y_bar = np.zeros((rad))
 
                     circle1 = plt.Circle((L_x[layer][i], Beam_props[layer + 2]), Beam_props[layer][i] / 2, color='k')
                     sectfig.add_patch(circle1)
@@ -638,27 +646,27 @@ class BeamSection(object):
                     #            sectfig.text(Beam_width+0.05,Beam_props[layer+2]+0.03,diameter)
                     diameter = str(bar_label[label]) + '-D' + str(int(label * 1000))
                     if label != 0:
-                        sectfig.text(self.Beam_width + 0.10 * value + 0.05, Beam_props[layer + 2] - 0.015, diameter)
+                        sectfig.text(self.width + 0.10 * value + 0.05, Beam_props[layer + 2] - 0.015, diameter)
                     value += 1
             # Write moment capacity
             M_cap_str = 'Mn= \n' + str(float(int(Moment_cap / 100)) / 10) + 'KNm'
-            sectfig.text(self.Beam_width + 0.05, self.Beam_depth / 2 - self.Beam_depth / 6 + rot * self.Beam_depth / 3,
+            sectfig.text(self.width + 0.05, self.depth / 2 - self.depth / 6 + rot * self.depth / 3,
                          M_cap_str)
 
             # Draw selected beam option:
 
             # draw beam edge:
-            x_edge = [0, self.Beam_width, self.Beam_width, 0, 0]
-            y_edge = [0, 0, self.Beam_depth, self.Beam_depth, 0]
+            x_edge = [0, self.width, self.width, 0, 0]
+            y_edge = [0, 0, self.depth, self.depth, 0]
             edge = sectfig.plot(x_edge, y_edge)
             plt.setp(edge, c='k', linewidth=1.5)
 
             # Centring and scaling image
-            plot_size = max(self.Beam_width, self.Beam_depth) + 0.1
+            plot_size = max(self.width, self.depth) + 0.1
             # print plot_size
-            extra = plot_size - self.Beam_width
+            extra = plot_size - self.width
             sectfig.axis('equal')
-            sectfig.axis([-0.04 - extra / 2, self.Beam_width + extra / 2 + 0.04, -0.01, plot_size + 0.01])
+            sectfig.axis([-0.04 - extra / 2, self.width + extra / 2 + 0.04, -0.01, plot_size + 0.01])
 
         sectfig.set_xlabel('Width (m)')
         sectfig.set_ylabel('Depth (m)')
@@ -683,10 +691,10 @@ if __name__ == '__main__':
     fc = 30e6
     fy = 300e6
     min_column_depth = 0.5
-    given_preferred_bar = 0.025
+    preferred_bar_diam = 0.025
     preferred_cover = 0.04
     layer_spacing = 0.04
-    beam = BeamSection(moment, depth, width, fc, fy, min_column_depth, given_preferred_bar, preferred_cover, layer_spacing)
+    beam = BeamSectionDesigner(moment, depth, width, fc, fy, min_column_depth, preferred_bar_diam, preferred_cover, layer_spacing)
     beam.design()
     beam.plotSection()
 
