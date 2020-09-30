@@ -127,207 +127,208 @@ class BeamSectionDesigner(object):
                 # Section: DESIGN CHECKS
                 if self.verbose == 1:
                     print('\n \n bar_options: ', bar_options)
-                Layer = [[], []]
 
-                # for i in range(n_sizes - 2):
-                good_bar_options = []
-                for j in range(len(bar_options)):
-                    nbd = bar_options[j]
-                    max_db = max(list(nbd))
+            # for i in range(n_sizes - 2):
+            good_bar_options = []
+            for j in range(len(bar_options)):
+                nbd = bar_options[j]
+                max_db = max(list(nbd))
 
-                    check = np.zeros(5)  # TODO: make as a dict
+                check = np.zeros(5)  # TODO: make as a dict
 
-                    # steel ratio
-                    As_tot = np.sum([nbd[db] * db ** 2 * np.pi / 4 for db in nbd])
-                    p_steel = As_tot / (self.width * self.depth)
-                    # #min steel ratio CL 9.4.3.4
-                    p_min = np.sqrt(self.fc) / (4 * self.fy)
-                    if p_steel > p_min:
-                        check[0] = 1
+                # steel ratio
+                As_tot = np.sum([nbd[db] * db ** 2 * np.pi / 4 for db in nbd])
+                p_steel = As_tot / (self.width * self.depth)
+                # #min steel ratio CL 9.4.3.4
+                p_min = np.sqrt(self.fc) / (4 * self.fy)
+                if p_steel > p_min:
+                    check[0] = 1
+                else:
+                    if self.verbose == 1:
+                        print('Failed:', nbd, ' Below minimum steel ratio')
+                    continue
+
+                # max steel ratio
+                # gravity: the distance from the extreme compression fibre
+                # to the neutral axis is less than 0.75cb (CL 9.3.8.1)
+
+                p_max = min((self.fc / 1e6 + 10) / (6 * self.fy / 1e6), 0.025)  # CL 9.4.3.3
+                if p_steel < p_max:
+                    check[1] = 1
+                else:
+                    if self.verbose == 1:
+                        print('Failed:', nbd, ' Exceeded maximum steel ratio')
+                    continue
+                # max bar check
+                alpha_f = 1.0  # 1.0 for oneway frame, 0.85 for 2way frame
+                alpha_d = 1.0  # 1.0 for ductile connections and 1.2 in limited ductile
+                db_max_lim = 3.3 * alpha_f * alpha_d * np.sqrt(self.fc / 1e6) / (1.25 * self.fy / 1e6) * self.min_col_depth
+                # print db_max
+
+                if db_max_lim > max_db:
+                    check[2] = 1
+                elif self.verbose == 1:
+                    check[2] = 1  # TODO: test is disabled
+                    print('Failed:', bar_options[j], ' Bar diameter too big')
+                    print('test disabled')
+
+                # hook length
+                required_in_length = max(8 * max_db, 0.2)
+                check[3] = 1  # TODO:
+
+                # Minimum steel
+                # need to have at least 2 16mm bars top and bottom
+                n_big_bars = np.sum([nbd[db] for db in nbd if db >= 0.016])
+                if n_big_bars > 2:
+                    check[4] = 1
+                else:
+                    if self.verbose == 1:
+                        print('Failed:', bar_options[j], ' Not enough corner bars')
+                    continue
+
+                # print check
+                if sum(check) < 5:
+                    continue
+                else:
+                    good_bar_options.append(bar_options[j])
+            # TODO: refactor into separate method
+            Layer = [[], []]
+            bar_options = good_bar_options
+            # Define bar spacing
+            for j in range(len(bar_options)):
+                n_bars = np.sum([bar_options[j][db] for db in bar_options[j]])
+                av_db = np.sum([bar_options[j][db] * db for db in bar_options[j]]) / n_bars
+                max_db = max(list(bar_options[j]))
+                min_db = min(list(bar_options[j]))
+                loc0 = cover + np.ceil(max_db / 2 * 1e3) / 1e3
+                loc1 = loc0 + self.layer_spacing
+                nbd = bar_options[j]
+                if min_db == max_db:
+                    min_db = None
+                bar_spacing = 0.06
+                bars_p_layer = ((self.width - 2 * cover) / (av_db + bar_spacing))
+                number_layers = n_bars / bars_p_layer
+                if n_bars < 2 or number_layers < 2.4:
+                    continue
+                if number_layers < 1.3:
+                    if self.verbose == 1:
+                        print('One layer of bars')
+                    if min_db is None:
+                        Layer[0] = max_db * np.ones(nbd[max_db])
+                    elif np.mod(nbd[max_db], 2) == 0:
+                        if self.verbose == 1:
+                            print('even number of large bars')
+                        # arrange to have main bars on the outside and the additional bars in centre.
+                        Layer[0] = list(max_db * np.ones(nbd[max_db]))
+                        for k in range(nbd[min_db]):
+                            Layer[0].insert(int(nbd[max_db] / 2), min_db)
+                        Layer[0] = np.array(Layer[0])
+                        assert n_bars - len(Layer[0]) == 0
+                    elif np.mod(nbd[max_db], 2) == 1 and min_db is not None and np.mod(nbd[min_db], 2) == 1:
+                        if self.verbose == 1:
+                            print('Uneven bar arrangement, arrangement removed')
+                            continue
                     else:
                         if self.verbose == 1:
-                            print('Failed:', nbd, ' Below minimum steel ratio')
-                        continue
-
-                    # max steel ratio
-                    # gravity: the distance from the extreme compression fibre
-                    # to the neutral axis is less than 0.75cb (CL 9.3.8.1)
-
-                    p_max = min((self.fc / 1e6 + 10) / (6 * self.fy / 1e6), 0.025)  # CL 9.4.3.3
-                    if p_steel < p_max:
-                        check[1] = 1
-                    else:
+                            print('uneven large bar numbers, even additional bars')
+                        Layer[0] = list(max_db * np.ones(nbd[max_db]))
+                        for side in range(2):
+                            for k in range(int(nbd[min_db] / 2)):
+                                Layer[0].insert(int(nbd[max_db] / 2 + 1 - side), min_db)
+                        Layer[0] = np.array(Layer[0])
+                        assert n_bars - len(Layer[0]) == 0
+                    Layer[1] = np.ones_like(Layer[0])
+                    bar_arrangement[rot].append([Layer[0], Layer[1], loc0, loc1])
+                    if self.verbose == 1:
+                        print('Bar arrangement: ', [Layer[0], Layer[1], loc0, loc1])
+                else:  # 2-layers of bars
+                    if self.verbose == 1:
+                        print('need two layers of bars')
+                    if min_db is None:  # only one bar type
+                        if np.mod(nbd[max_db], 2) == 0:  # even same number of bars for both layers
+                            Layer[0] = max_db * np.ones(int(nbd[max_db] / 2))
+                            Layer[1] = max_db * np.ones(int(nbd[max_db] / 2))
+                            bar_arrangement[rot].append([Layer[0], Layer[1], loc0, loc1])
+                        else:  # add two combinations, one with extra bar on top and other with extra below
+                            Layer[0] = max_db * np.ones(int(nbd[max_db] / 2 + 1))
+                            Layer[1] = max_db * np.ones(int(nbd[max_db] / 2))
+                            bar_arrangement[rot].append([Layer[0], Layer[1], loc0, loc1])
+                            Layer[0] = max_db * np.ones(int(nbd[max_db] / 2))
+                            Layer[1] = max_db * np.ones(int(nbd[max_db] / 2 + 1))
+                            bar_arrangement[rot].append([Layer[0], Layer[1], loc0, loc1])
+                    elif np.mod(nbd[max_db], 4) == 0:
                         if self.verbose == 1:
-                            print('Failed:', nbd, ' Exceeded maximum steel ratio')
-                        continue
-                    # max bar check
-                    alpha_f = 1.0  # 1.0 for oneway frame, 0.85 for 2way frame
-                    alpha_d = 1.0  # 1.0 for ductile connections and 1.2 in limited ductile
-                    db_max_lim = 3.3 * alpha_f * alpha_d * np.sqrt(self.fc / 1e6) / (1.25 * self.fy / 1e6) * self.min_col_depth
-                    # print db_max
+                            print('even number of main bars for top and bottom')
+                        # arrange to have main bars on the outside and the additional bars in centre.
+                        Layer[0] = list(max_db * np.ones(int(nbd[max_db] / 2)))
+                        Layer[1] = list(max_db * np.ones(int(nbd[max_db] / 2)))
+                        # Add smaller bars into the centre alternating each layer start with outer
+                        for n in range(nbd[min_db]):
+                            Layer[n % 2].insert(int(nbd[max_db] / 4), min_db)
+                        bar_arrangement[rot].append([np.array(Layer[0]), np.array(Layer[1]), loc0, loc1])
+                        Layer[0] = list(max_db * np.ones(int(nbd[max_db] / 2)))
+                        Layer[1] = list(max_db * np.ones(int(nbd[max_db] / 2)))
+                        # Add smaller bars into the centre alternating each layer start with outer
+                        for n in range(nbd[min_db]):
+                            Layer[(n + 1) % 2].insert(int(nbd[max_db] / 4), min_db)
+                        bar_arrangement[rot].append([np.array(Layer[0]), np.array(Layer[1]), loc0, loc1])
 
-                    if db_max_lim > max_db:
-                        check[2] = 1
-                    elif self.verbose == 1:
-                        check[2] = 1  # TODO: test is disabled
-                        print('Failed:', bar_options[j], ' Bar diameter too big')
-                        print('test disabled')
-
-                    # hook length
-                    required_in_length = max(8 * max_db, 0.2)
-                    check[3] = 1  # TODO:
-
-                    # Minimum steel
-                    # need to have at least 2 16mm bars top and bottom
-                    n_big_bars = np.sum([nbd[db] for db in nbd if db >= 0.016])
-                    if n_big_bars > 2:
-                        check[4] = 1
-                    else:
-                        if self.verbose == 1:
-                            print('Failed:', bar_options[j], ' Not enough corner bars')
-                        continue
-
-                    # print check
-                    if sum(check) < 5:
-                        continue
-                    else:
-                        good_bar_options.append(bar_options[j])
-                bar_options = good_bar_options
-                # Define bar spacing
-                for j in range(len(bar_options)):
-                    n_bars = np.sum([bar_options[j][db] for db in bar_options[j]])
-                    av_db = np.sum([bar_options[j][db] * db for db in bar_options[j]]) / n_bars
-                    max_db = max(list(bar_options[j]))
-                    min_db = min(list(bar_options[j]))
-                    loc0 = cover + np.ceil(max_db / 2 * 1e3) / 1e3
-                    loc1 = loc0 + self.layer_spacing
-                    nbd = bar_options[j]
-                    if min_db == max_db:
-                        min_db = None
-                    bar_spacing = 0.06
-                    bars_p_layer = ((self.width - 2 * cover) / (av_db + bar_spacing))
-                    number_layers = n_bars / bars_p_layer
-                    if n_bars < 2 or number_layers < 2.4:
-                        continue
-                    if number_layers < 1.3:
-                        if self.verbose == 1:
-                            print('One layer of bars')
-                        if min_db is None:
-                            Layer[0] = max_db * np.ones(nbd[max_db])
-                        elif np.mod(nbd[max_db], 2) == 0:
-                            if self.verbose == 1:
-                                print('even number of large bars')
-                            # arrange to have main bars on the outside and the additional bars in centre.
-                            Layer[0] = list(max_db * np.ones(nbd[max_db]))
-                            for k in range(nbd[min_db]):
-                                Layer[0].insert(int(nbd[max_db] / 2), min_db)
-                            Layer[0] = np.array(Layer[0])
-                            assert n_bars - len(Layer[0]) == 0
-                        elif np.mod(nbd[max_db], 2) == 1 and min_db is not None and np.mod(nbd[min_db], 2) == 1:
-                            if self.verbose == 1:
-                                print('Uneven bar arrangement, arrangement removed')
-                                continue
-                        else:
-                            if self.verbose == 1:
-                                print('uneven large bar numbers, even additional bars')
-                            Layer[0] = list(max_db * np.ones(nbd[max_db]))
-                            for side in range(2):
-                                for k in range(int(nbd[min_db] / 2)):
-                                    Layer[0].insert(int(nbd[max_db] / 2 + 1 - side), min_db)
-                            Layer[0] = np.array(Layer[0])
-                            assert n_bars - len(Layer[0]) == 0
-                        Layer[1] = np.ones_like(Layer[0])
-                        bar_arrangement[rot].append([Layer[0], Layer[1], loc0, loc1])
-                        if self.verbose == 1:
-                            print('Bar arrangement: ', [Layer[0], Layer[1], loc0, loc1])
-                    else:  # 2-layers of bars
-                        if self.verbose == 1:
-                            print('need two layers of bars')
-                        if min_db is None:  # only one bar type
-                            if np.mod(nbd[max_db], 2) == 0:  # even same number of bars for both layers
-                                Layer[0] = max_db * np.ones(int(nbd[max_db] / 2))
-                                Layer[1] = max_db * np.ones(int(nbd[max_db] / 2))
-                                bar_arrangement[rot].append([Layer[0], Layer[1], loc0, loc1])
-                            else:  # add two combinations, one with extra bar on top and other with extra below
-                                Layer[0] = max_db * np.ones(int(nbd[max_db] / 2 + 1))
-                                Layer[1] = max_db * np.ones(int(nbd[max_db] / 2))
-                                bar_arrangement[rot].append([Layer[0], Layer[1], loc0, loc1])
-                                Layer[0] = max_db * np.ones(int(nbd[max_db] / 2))
-                                Layer[1] = max_db * np.ones(int(nbd[max_db] / 2 + 1))
-                                bar_arrangement[rot].append([Layer[0], Layer[1], loc0, loc1])
-                        elif np.mod(nbd[max_db], 4) == 0:
-                            if self.verbose == 1:
-                                print('even number of main bars for top and bottom')
-                            # arrange to have main bars on the outside and the additional bars in centre.
-                            Layer[0] = list(max_db * np.ones(int(nbd[max_db] / 2)))
-                            Layer[1] = list(max_db * np.ones(int(nbd[max_db] / 2)))
-                            # Add smaller bars into the centre alternating each layer start with outer
-                            for n in range(nbd[min_db]):
-                                Layer[n % 2].insert(int(nbd[max_db] / 4), min_db)
-                            bar_arrangement[rot].append([np.array(Layer[0]), np.array(Layer[1]), loc0, loc1])
-                            Layer[0] = list(max_db * np.ones(int(nbd[max_db] / 2)))
-                            Layer[1] = list(max_db * np.ones(int(nbd[max_db] / 2)))
-                            # Add smaller bars into the centre alternating each layer start with outer
-                            for n in range(nbd[min_db]):
-                                Layer[(n + 1) % 2].insert(int(nbd[max_db] / 4), min_db)
-                            bar_arrangement[rot].append([np.array(Layer[0]), np.array(Layer[1]), loc0, loc1])
-
-                        elif np.mod(nbd[max_db], 2) == 0:
-                            # Add larger bars and add the extra two to the outer layer
-                            Layer[0] = [max_db] * (int(nbd[max_db] / 4) * 2 + 2)
+                    elif np.mod(nbd[max_db], 2) == 0:
+                        # Add larger bars and add the extra two to the outer layer
+                        Layer[0] = [max_db] * (int(nbd[max_db] / 4) * 2 + 2)
+                        Layer[1] = [max_db] * int(nbd[max_db] / 4) * 2
+                        for i in range(nbd[min_db]):
+                            if i < 2:
+                                Layer[1].insert(int(len(Layer[1]) / 2), min_db)
+                            else:
+                                Layer[i % 2].insert(int(len(Layer[i % 2]) / 2), min_db)
+                        bar_arrangement[rot].append([np.array(Layer[0]), np.array(Layer[1]), loc0, loc1])
+                    # elif np.mod(nbd[min_db], 2) != 0:
+                    #     continue
+                    elif nbd[max_db] > 0:  # uneven main bars greater than 4?
+                        if nbd[max_db] % 4 == 1:
+                            has_centre = [1, 0]
+                            # Add larger bars and add the extra bar to the outer layer
+                            Layer[0] = [max_db] * (int(nbd[max_db] / 4) * 2 + 1)
                             Layer[1] = [max_db] * int(nbd[max_db] / 4) * 2
-                            for i in range(nbd[min_db]):
-                                if i < 2:
-                                    Layer[1].insert(int(len(Layer[1]) / 2), min_db)
-                                else:
-                                    Layer[i % 2].insert(int(len(Layer[i % 2]) / 2), min_db)
-                            bar_arrangement[rot].append([np.array(Layer[0]), np.array(Layer[1]), loc0, loc1])
-                        # elif np.mod(nbd[min_db], 2) != 0:
-                        #     continue
-                        elif nbd[max_db] > 0:  # uneven main bars greater than 4?
-                            if nbd[max_db] % 4 == 1:
-                                has_centre = [1, 0]
-                                # Add larger bars and add the extra bar to the outer layer
-                                Layer[0] = [max_db] * (int(nbd[max_db] / 4) * 2 + 1)
-                                Layer[1] = [max_db] * int(nbd[max_db] / 4) * 2
-                            else:  # has 3 extra
-                                has_centre = [0, 1]
-                                # Add larger bars and add the extra bar to the outer layer
-                                Layer[0] = [max_db] * (int(nbd[max_db] / 4) * 2 + 2)
-                                Layer[1] = [max_db] * (int(nbd[max_db] / 4) * 2 + 1)
-                            # Then alternate adding smaller bars two at a time
-                            for i in range(int(nbd[min_db] / 4)):
-                                for k in range(2):
-                                    if has_centre[k]:
-                                        # add to left and right of main bar
-                                        n_left = int((len(Layer[k]) - 1) / 2)
-                                        n_right = int((len(Layer[k]) + 1) / 2)
-                                        Layer[k].insert(n_left, min_db)
-                                        Layer[k].insert(n_right, min_db)
-                                    else:
-                                        # add to centre
-                                        Layer[k].insert(int(len(Layer[k]) / 2), min_db)
-                                        Layer[k].insert(int(len(Layer[k]) / 2), min_db)
-                            # add remaining small bars to balance section
-                            n_extra = nbd[min_db] % 4
+                        else:  # has 3 extra
+                            has_centre = [0, 1]
+                            # Add larger bars and add the extra bar to the outer layer
+                            Layer[0] = [max_db] * (int(nbd[max_db] / 4) * 2 + 2)
+                            Layer[1] = [max_db] * (int(nbd[max_db] / 4) * 2 + 1)
+                        # Then alternate adding smaller bars two at a time
+                        for i in range(int(nbd[min_db] / 4)):
                             for k in range(2):
                                 if has_centre[k]:
-                                    if n_extra == 1:
-                                        continue
-                                    elif n_extra >= 2:
-                                        # add to left and right of main bar
-                                        n_left = int((len(Layer[k]) - 1) / 2)
-                                        n_right = int((len(Layer[k]) + 1) / 2)
-                                        Layer[k].insert(n_left, min_db)
-                                        Layer[k].insert(n_right, min_db)
+                                    # add to left and right of main bar
+                                    n_left = int((len(Layer[k]) - 1) / 2)
+                                    n_right = int((len(Layer[k]) + 1) / 2)
+                                    Layer[k].insert(n_left, min_db)
+                                    Layer[k].insert(n_right, min_db)
                                 else:
-                                    if n_extra in [1, 3]:
-                                        Layer[k].insert(int(len(Layer[k]) / 2), min_db)
+                                    # add to centre
+                                    Layer[k].insert(int(len(Layer[k]) / 2), min_db)
+                                    Layer[k].insert(int(len(Layer[k]) / 2), min_db)
+                        # add remaining small bars to balance section
+                        n_extra = nbd[min_db] % 4
+                        for k in range(2):
+                            if has_centre[k]:
+                                if n_extra == 1:
+                                    continue
+                                elif n_extra >= 2:
+                                    # add to left and right of main bar
+                                    n_left = int((len(Layer[k]) - 1) / 2)
+                                    n_right = int((len(Layer[k]) + 1) / 2)
+                                    Layer[k].insert(n_left, min_db)
+                                    Layer[k].insert(n_right, min_db)
+                            else:
+                                if n_extra in [1, 3]:
+                                    Layer[k].insert(int(len(Layer[k]) / 2), min_db)
 
-                            bar_arrangement[rot].append([np.array(Layer[0]), np.array(Layer[1]), loc0, loc1])
-                            if self.verbose == 1:
-                                print('Bar arrangement: ', [Layer[0], Layer[1], loc0, loc1])
-
+                        bar_arrangement[rot].append([np.array(Layer[0]), np.array(Layer[1]), loc0, loc1])
+                        if self.verbose == 1:
+                            print('Bar arrangement: ', [Layer[0], Layer[1], loc0, loc1])
+        # TODO: add additional spacing checks
         # counting number of preferred_bar
         for attempt in range(2):
             score = [[], []]
