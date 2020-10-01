@@ -315,31 +315,49 @@ class BeamSectionDesigner(object):
                         for k in range(2):
                             if has_centre[k]:
                                 # add to left and right of main bar
-                                n_left = int((len(Layer[k]) - 1) / 2)
-                                n_right = int((len(Layer[k]) + 1) / 2)
-                                Layer[k].insert(n_left, min_db)
+                                n_left = int((len(Layer[k])) / 2)
+                                n_right = int((len(Layer[k])) / 2 + 1)
                                 Layer[k].insert(n_right, min_db)
+                                Layer[k].insert(n_left, min_db)
                             else:
                                 # add to centre
                                 Layer[k].insert(int(len(Layer[k]) / 2), min_db)
                                 Layer[k].insert(int(len(Layer[k]) / 2), min_db)
                     # add remaining small bars to balance section
                     n_extra = nbd[min_db] % 4
-                    for k in range(2):
-                        if has_centre[k]:
-                            if n_extra == 1:
-                                continue
-                            elif n_extra >= 2:
-                                # add to left and right of main bar
-                                n_left = int((len(Layer[k]) - 1) / 2)
-                                n_right = int((len(Layer[k]) + 1) / 2)
-                                Layer[k].insert(n_left, min_db)
-                                Layer[k].insert(n_right, min_db)
+                    # note that layer0 len is always greater than layer1
+                    if n_extra == 1:
+                        if has_centre[0]:  # then add to layer[1]
+                            Layer[1].insert(int(len(Layer[1]) / 2), min_db)
+                        else:  # now layer[0] has two more bars than layer [1]
+                            Layer[0].insert(int(len(Layer[0]) / 2), min_db)
+                    elif n_extra == 2:  # now layer[1] has 1 extra - not a great design
+                        if has_centre[1]:
+                            n_left = int((len(Layer[1])) / 2)
+                            n_right = int((len(Layer[1])) / 2 + 1)
                         else:
-                            if n_extra in [1, 3]:
-                                Layer[k].insert(int(len(Layer[k]) / 2), min_db)
+                            n_left = int((len(Layer[1])) / 2)
+                            n_right = int((len(Layer[1])) / 2)
+                        Layer[1].insert(n_right, min_db)
+                        Layer[1].insert(n_left, min_db)
+                    elif n_extra == 3:
+                        if has_centre[0]:  # then add 1 to layer[1] and 2 to layer[0]
+                            Layer[1].insert(int(len(Layer[1]) / 2), min_db)
+                            n_left = int((len(Layer[0])) / 2)
+                            n_right = int((len(Layer[0])) / 2 + 1)
+                            Layer[0].insert(n_right, min_db)
+                            Layer[0].insert(n_left, min_db)
+                        else:
+                            Layer[0].insert(int(len(Layer[0]) / 2), min_db)
+                            n_left = int((len(Layer[1])) / 2)
+                            n_right = int((len(Layer[1])) / 2 + 1)
+                            Layer[1].insert(n_right, min_db)
+                            Layer[1].insert(n_left, min_db)
 
+                    if abs(len(Layer[0]) - len(Layer[1])) > 2:
+                        raise ValueError(rot, i)
                     self.bar_arrangements[rot].append([np.array(Layer[0]), np.array(Layer[1])])
+
 
     def phase2b_check_min_bar_spacing(self, rot):
         # spacing must be equal to or greater than max(db) or 25mm CL 8.31)
@@ -350,8 +368,8 @@ class BeamSectionDesigner(object):
             min_width1 = sum(layers[1]) + (len(layers[1]) - 1) * max(layers[1]) + 2 * self.conc_cover
             if self.width < max(min_width0, min_width1):
                 to_remove.append(i)
-        for i in to_remove:
-            del self.bar_arrangements[rot][i]
+        # for i in to_remove:
+        #     del self.bar_arrangements[rot][i]
 
     def phase3b_calc_bar_size_scores(self, rot):
         # TODO: add additional spacing checks
@@ -389,7 +407,7 @@ class BeamSectionDesigner(object):
         if self.verbose == 1:
             print('SCORE: ', score)
         if max(score) == 0:
-            raise ValueError(f"No workable designs using the preferred bar diameter: {self.preferred_bar}")
+            raise ValueError(f"No workable designs using the preferred bar diameter: {self.preferred_bar}, rot: {rot}")
         self.bar_size_scores[rot] = np.array(score)
 
     def phase3a_calc_moment_capacities_and_steel_areas(self, rot):
@@ -453,7 +471,7 @@ class BeamSectionDesigner(object):
                     inds = [int(len(x) / 2) - 1, int(len(x) / 2)]
                     self.x_layers[rot][i][b] = np.delete(x, inds)
             else:
-                print(layers[a], layers[b])
+                print(i, rot, layers[a], layers[b])
                 raise ValueError()  # issue with initial bar arrangement!
 
             min_space = [100, 100]
@@ -465,25 +483,25 @@ class BeamSectionDesigner(object):
 
     def phase4_select_preferred_bar_arrangement(self):
         rot = int(np.argmax(self.m_demand))  # select largest moment first
-        bar_spacing_check = np.ones(len(self.bar_arrangements[rot]))
-        moment_capacity_check = np.ones(len(self.bar_arrangements[rot]))
+        bar_spacing_check = np.zeros(len(self.bar_arrangements[rot]))
+        moment_capacity_check = np.zeros(len(self.bar_arrangements[rot]))
         for i in range(len(self.bar_arrangements[rot])):
             layers = self.bar_arrangements[rot][i]
             for a in range(2):
                 max_db = max(layers[a])
                 # spacing must be equal to or greater than max(db) or 25mm CL 8.31)
-                if self.min_spacing[i] > max([max_db, 0.025]):
+                if self.min_spacing[rot][i] > max([max_db, 0.025]):
                     bar_spacing_check[i] = 1
 
-            if 0.98 * self.m_demand[rot] > self.moment_capacities[rot]:
+            if 0.98 * self.m_demand[rot] > self.moment_capacities[rot][i]:
                 moment_capacity_check[i] = 0
-            if 1.0 * self.m_demand[rot] > self.moment_capacities[rot]:
+            if 1.0 * self.m_demand[rot] > self.moment_capacities[rot][i]:
                 moment_capacity_check[i] = 0.5
-            elif self.moment_capacities[rot] < self.m_demand[rot] * 1.05:  # within 5% of target moment capacity
+            elif self.moment_capacities[rot][i] < self.m_demand[rot] * 1.05:  # within 5% of target moment capacity
                 moment_capacity_check[i] = 1
-            elif self.moment_capacities[rot] < self.m_demand[rot] * 1.1:  # within 10% still worth picking for bar size
+            elif self.moment_capacities[rot][i] < self.m_demand[rot] * 1.1:  # within 10% still worth picking for bar size
                 moment_capacity_check[i] = 0.1
-            elif self.moment_capacities[rot] < self.m_demand[rot] * 1.2:  # within 20% would rather pick diff bar size
+            elif self.moment_capacities[rot][i] < self.m_demand[rot] * 1.2:  # within 20% would rather pick diff bar size
                 moment_capacity_check[i] = 0.001
             else:
                 moment_capacity_check[i] = 0.00001
@@ -499,26 +517,26 @@ class BeamSectionDesigner(object):
         selected_steel_area = self.steel_areas[rot][selected_ind]
         # Other direction
         rot2 = (rot + 1) % 2
-        bar_spacing_check = np.ones(len(self.bar_arrangements[rot2]))
-        moment_capacity_check = np.ones(len(self.bar_arrangements[rot2]))
-        area_steel_check = np.ones(len(self.bar_arrangements[rot2]))
+        bar_spacing_check = np.zeros(len(self.bar_arrangements[rot2]))
+        moment_capacity_check = np.zeros(len(self.bar_arrangements[rot2]))
+        area_steel_check = np.zeros(len(self.bar_arrangements[rot2]))
         for i in range(len(self.bar_arrangements[rot2])):
             layers = self.bar_arrangements[rot2][i]
             for a in range(2):
                 max_db = max(layers[a])
                 # spacing must be equal to or greater than max(db) or 25mm CL 8.31)
-                if self.min_spacing[i] > max([max_db, 0.025]):
+                if self.min_spacing[rot2][i] > max([max_db, 0.025]):
                     bar_spacing_check[i] = 1
 
-            if 0.98 * self.m_demand[rot2] > self.moment_capacities[rot2]:
+            if 0.98 * self.m_demand[rot2] > self.moment_capacities[rot2][i]:
                 moment_capacity_check[i] = 0
-            if 1.0 * self.m_demand[rot2] > self.moment_capacities[rot2]:
+            if 1.0 * self.m_demand[rot2] > self.moment_capacities[rot2][i]:
                 moment_capacity_check[i] = 0.5
-            elif self.moment_capacities[rot2] < self.m_demand[rot2] * 1.05:  # within 5% of target moment capacity
+            elif self.moment_capacities[rot2][i] < self.m_demand[rot2] * 1.05:  # within 5% of target moment capacity
                 moment_capacity_check[i] = 1
-            elif self.moment_capacities[rot2] < self.m_demand[rot2] * 1.1:  # within 10% still worth picking for bar size
+            elif self.moment_capacities[rot2][i] < self.m_demand[rot2] * 1.1:  # within 10% still worth picking for bar size
                 moment_capacity_check[i] = 0.1
-            elif self.moment_capacities[rot2] < self.m_demand[rot2] * 1.5:  # within 50% would rather pick diff bar size
+            elif self.moment_capacities[rot2][i] < self.m_demand[rot2] * 1.5:  # within 50% would rather pick diff bar size
                 moment_capacity_check[i] = 0.001
             else:
                 moment_capacity_check[i] = 0.00001
@@ -564,25 +582,20 @@ class BeamSectionDesigner(object):
             for layer in range(2):  # CHANGE THIS
                 bar_label = {}
                 if rot == 1:
-                    Beam_props[layer + 2] = self.depth - layer_locs[layer]
+                    y = self.depth - layer_locs[rot][layer]
+                else:
+                    y = layer_locs[rot][layer]
                 for i in range(len(Beam_props[layer])):
 
-                    circle1 = plt.Circle((L_x[layer][i], layer_locs[layer]), Beam_props[layer][i] / 2, color='k')
+                    circle1 = plt.Circle((L_x[layer][i], y), Beam_props[layer][i] / 2, color='k')
                     sectfig.add_patch(circle1)
-                    try:
-                        bar_label[Beam_props[layer][i]] += 1
-                    except:
-                        KeyError()
-                        bar_label[Beam_props[layer][i]] = 1
+                    bar_label[Beam_props[layer][i]] += 1
 
                 value = 0
                 for label in bar_label:
-
-                    #            diameter=str(len(Beam_props[layer]))+'D'+str(int((Beam_props[layer][0]*1000)))
-                    #            sectfig.text(Beam_width+0.05,Beam_props[layer+2]+0.03,diameter)
                     diameter = str(bar_label[label]) + '-D' + str(int(label * 1000))
                     if label != 0:
-                        sectfig.text(self.width + 0.10 * value + 0.05, Beam_props[layer + 2] - 0.015, diameter)
+                        sectfig.text(self.width + 0.10 * value + 0.05, y - 0.015, diameter)
                     value += 1
             # Write moment capacity
             M_cap_str = 'Mn= \n' + str(float(int(Moment_cap / 100)) / 10) + 'KNm'
@@ -627,10 +640,9 @@ if __name__ == '__main__':
     fc = 30e6
     fy = 300e6
     min_column_depth = 0.5
-    preferred_bar_diam = 0.025
+    preferred_bar_diam = 0.02
     preferred_cover = 0.04
     layer_spacing = 0.04
     beam = BeamSectionDesigner(moment, depth, width, fc, fy, min_column_depth, preferred_bar_diam, preferred_cover, layer_spacing)
-    beam.design()
-    beam.plotSection()
+    beam.plot_section()
 
