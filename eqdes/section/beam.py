@@ -355,9 +355,8 @@ class BeamSectionDesigner(object):
                             Layer[1].insert(n_left, min_db)
 
                     if abs(len(Layer[0]) - len(Layer[1])) > 2:
-                        raise ValueError(rot, i)
+                        raise ValueError(f'{rot}, {i}')
                     self.bar_arrangements[rot].append([np.array(Layer[0]), np.array(Layer[1])])
-
 
     def phase2b_check_min_bar_spacing(self, rot):
         # spacing must be equal to or greater than max(db) or 25mm CL 8.31)
@@ -368,12 +367,11 @@ class BeamSectionDesigner(object):
             min_width1 = sum(layers[1]) + (len(layers[1]) - 1) * max(layers[1]) + 2 * self.conc_cover
             if self.width < max(min_width0, min_width1):
                 to_remove.append(i)
-        # for i in to_remove:
-        #     del self.bar_arrangements[rot][i]
+        for i in to_remove:
+            del self.bar_arrangements[rot][i]
 
     def phase3b_calc_bar_size_scores(self, rot):
-        # TODO: add additional spacing checks
-        # counting number of preferred_bar
+        # count number of preferred_bar
         # 1e5 for preferred_bar
         # 1e3 for lower size
         # 1 for bigger size
