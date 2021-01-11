@@ -85,22 +85,48 @@ def assess(fb, storey_forces, mom_ratio=0.6, verbose=0):
     return moment_beams_cl, moment_column_bases, axial_seismic
 
 
-def set_beam_face_moments_from_centreline_demands(df, moment_beams_cl):  # TODO: currently beam moment are centreline!
+def set_beam_face_moments_from_centreline_demands(df, moment_beams_cl, centre_sect=False):  # TODO: currently beam moment are centreline!
+    import sfsimodels as sm
+    assert isinstance(df, sm.FrameBuilding)
+    nsects = 2
+    es = 1
+    if centre_sect:
+        nsects = 3
+        es = 2
+    for ns in range(df.n_storeys):
+        beams = df.get_beams_at_storey(ns)
+        for beam in beams:
+            existing_sects = beam.sections
+            if len(existing_sects) != nsects:
+                beam.sections = [existing_sects[0].deepcopy() for x in range(nsects)]
+        # for nb in range(df.n_bays):
+    # Assumes symmetric
+    df.set_beam_prop('mom_cap_p', moment_beams_cl[:, :, :1], sections=[0], repeat='none')
+    df.set_beam_prop('mom_cap_p', -moment_beams_cl[:, :, 1:], sections=[es], repeat='none')
+    # Assumes symmetric
+    df.set_beam_prop('mom_cap_n', -moment_beams_cl[:, :, :1], sections=[0], repeat='none')
+    df.set_beam_prop('mom_cap_n', moment_beams_cl[:, :, 1:], sections=[es], repeat='none')
+
+def set_beam_dimensions_from_yield_moment_and_strain(df, eps_yield, e_mod, f_crack=0.4, d_fact=2.1):
+    """d_fact=2.1 from Priestley book"""
     import sfsimodels as sm
     assert isinstance(df, sm.FrameBuilding)
     for ns in range(df.n_storeys):
         beams = df.get_beams_at_storey(ns)
         for beam in beams:
-            existing_sects = beam.sections
-            if len(existing_sects) != 2:
-                beam.sections = [existing_sects[0].deepcopy(), existing_sects[0].deepcopy()]
-        # for nb in range(df.n_bays):
-    # Assumes symmetric
-    df.set_beam_prop('mom_cap_p', moment_beams_cl[:, :, :1], sections=[0], repeat='none')
-    df.set_beam_prop('mom_cap_p', -moment_beams_cl[:, :, 1:], sections=[1], repeat='none')
-    # Assumes symmetric
-    df.set_beam_prop('mom_cap_n', -moment_beams_cl[:, :, :1], sections=[0], repeat='none')
-    df.set_beam_prop('mom_cap_n', moment_beams_cl[:, :, 1:], sections=[1], repeat='none')
+            sects = beam.sections
+            widths = []
+            for sect in sects:
+                phi_y = d_fact * eps_yield / sect.depth
+                if hasattr(sect, 'mom_cap_p'):
+                    mom_cap = (sect.mom_cap_p - sect.mom_cap_n) / 2
+                    i_cracked = mom_cap / phi_y / e_mod
+                    i_full = i_cracked / f_crack
+                    widths.append(i_full / sect.depth ** 3 * 12)
+            width = np.mean(widths)
+            beam.set_section_prop('width', width, sections=list(range(len(sects))))
+            beam.set_section_prop('e_mod', e_mod, sections=list(range(len(sects))))
+            beam.set_section_prop('f_crack', f_crack, sections=list(range(len(sects))))
 
 
 def set_column_base_moments_from_demands(df, moment_column_bases):
@@ -114,11 +140,13 @@ def set_column_base_moments_from_demands(df, moment_column_bases):
             column.sections = [existing_sects[0].deepcopy(),  # TODO: should be RCColumnSection
                            existing_sects[0].deepcopy()]
         column.sections[0].mom_cap = moment_column_bases[i]
+        column.sections[0].inputs += ['mom_cap']
 
 
-def calc_otm_capacity(df):  # and account for tie beams !!! and m_foots=None, h_foot=0
-    m_col_bases = df.get_column_base_moments()
-    m_f_beams = df.get_beam_face_moments(signs=('p', 'n'))
+def calc_otm_capacity(df, m_col_bases=None):  # and account for tie beams !!! and m_foots=None, h_foot=0
+    if m_col_bases is None:
+        m_col_bases = df.get_column_base_moments()
+    m_f_beams = get_beam_face_moments(df, signs=('p', 'n'))
     v_beams = -np.diff(m_f_beams[:, :]).reshape((df.n_storeys, df.n_bays)) / df.bay_lengths[np.newaxis, :]
     # Assume contra-flexure at centre of beam
     a_loads = np.zeros((df.n_storeys, df.get_n_cols()))
@@ -132,3 +160,13 @@ def calc_otm_capacity(df):  # and account for tie beams !!! and m_foots=None, h_
     # print('v_beams: ')
     # print(v_beams)
 
+def calc_seismic_axial_load_limit(df):  # and account for tie beams !!! and m_foots=None, h_foot=0
+    m_col_bases = df.get_column_base_moments()
+    m_f_beams = df.get_beam_face_moments(signs=('p', 'n'))
+    v_beams = -np.diff(m_f_beams[:, :]).reshape((df.n_storeys, df.n_bays)) / df.bay_lengths[np.newaxis, :]
+    # Assume contra-flexure at centre of beam
+    a_loads = np.zeros((df.n_storeys, df.get_n_cols()))
+    a_loads[:, :-1] += v_beams
+    a_loads[:, 1:] += -v_beams
+    col_axial_loads = np.sum(a_loads, axis=0)
+    return col_axial_loads

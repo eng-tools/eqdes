@@ -136,6 +136,8 @@ class DesignedRCFrame(FrameBuilding):
         self.storey_forces = np.zeros((1, len(self.storey_masses)))
         self.hm_factor = dt.cal_higher_mode_factor(self.n_storeys, btype="frame")
         self._extra_class_variables = ["method"]
+        self.method = None
+        self.inputs = [item for item in self.inputs]
         self.inputs += self._extra_class_variables
         self.beam_group_size = 2
 
@@ -174,6 +176,7 @@ class DesignedRCWall(WallBuilding):
         self.storey_forces = np.zeros((1, len(self.storey_masses)))
         self.hm_factor = dt.cal_higher_mode_factor(self.n_storeys, btype="wall")
         self._extra_class_variables = ["method"]
+        self.method = None
         self.inputs += self._extra_class_variables
 
     def static_dbd_values(self):
@@ -222,6 +225,7 @@ class AssessedRCFrame(FrameBuilding):
         self.storey_forces = np.zeros((1, len(self.storey_masses)))
         self.hm_factor = dt.cal_higher_mode_factor(self.n_storeys, btype="frame")
         self._extra_class_variables = ["method"]
+        self.method = None
         self.inputs += self._extra_class_variables
 
 
