@@ -1,5 +1,5 @@
 import numpy as np
-
+from eqdes import fns
 from eqdes.extensions.exceptions import DesignError
 
 
@@ -146,7 +146,7 @@ def set_column_base_moments_from_demands(df, moment_column_bases):
 def calc_otm_capacity(df, m_col_bases=None):  # and account for tie beams !!! and m_foots=None, h_foot=0
     if m_col_bases is None:
         m_col_bases = df.get_column_base_moments()
-    m_f_beams = get_beam_face_moments(df, signs=('p', 'n'))
+    m_f_beams = fns.get_beam_face_moments(df, signs=('p', 'n'))
     v_beams = -np.diff(m_f_beams[:, :]).reshape((df.n_storeys, df.n_bays)) / df.bay_lengths[np.newaxis, :]
     # Assume contra-flexure at centre of beam
     a_loads = np.zeros((df.n_storeys, df.get_n_cols()))
@@ -160,9 +160,10 @@ def calc_otm_capacity(df, m_col_bases=None):  # and account for tie beams !!! an
     # print('v_beams: ')
     # print(v_beams)
 
+
 def calc_seismic_axial_load_limit(df):  # and account for tie beams !!! and m_foots=None, h_foot=0
-    m_col_bases = df.get_column_base_moments()
-    m_f_beams = df.get_beam_face_moments(signs=('p', 'n'))
+    m_col_bases = fns.get_column_base_moments(df)
+    m_f_beams = fns.get_beam_face_moments(df, signs=('p', 'n'))
     v_beams = -np.diff(m_f_beams[:, :]).reshape((df.n_storeys, df.n_bays)) / df.bay_lengths[np.newaxis, :]
     # Assume contra-flexure at centre of beam
     a_loads = np.zeros((df.n_storeys, df.get_n_cols()))
