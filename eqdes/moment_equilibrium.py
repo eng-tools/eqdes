@@ -143,9 +143,9 @@ def set_column_base_moments_from_demands(df, moment_column_bases):
         column.sections[0].inputs += ['mom_cap']
 
 
-def calc_otm_capacity(df, m_col_bases=None):  # and account for tie beams !!! and m_foots=None, h_foot=0
-    if m_col_bases is None:
-        m_col_bases = df.get_column_base_moments()
+def calc_otm_capacity(df, mcbs=None):  # and account for tie beams !!! and m_foots=None, h_foot=0
+    if mcbs is None:
+        mcbs = df.get_column_base_moments()
     m_f_beams = fns.get_beam_face_moments(df, signs=('p', 'n'))
     v_beams = -np.diff(m_f_beams[:, :]).reshape((df.n_storeys, df.n_bays)) / df.bay_lengths[np.newaxis, :]
     # Assume contra-flexure at centre of beam
@@ -155,10 +155,8 @@ def calc_otm_capacity(df, m_col_bases=None):  # and account for tie beams !!! an
     col_axial_loads = np.sum(a_loads, axis=0)
     x_cols = df.get_column_positions()
     otm_beams = -np.sum(x_cols * col_axial_loads)
-    otm_total = otm_beams + np.sum(m_col_bases)
+    otm_total = otm_beams + np.sum(mcbs)
     return otm_total
-    # print('v_beams: ')
-    # print(v_beams)
 
 
 def calc_seismic_axial_load_limit(df):  # and account for tie beams !!! and m_foots=None, h_foot=0
