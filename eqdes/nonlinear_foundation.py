@@ -274,3 +274,54 @@ def calc_fd_rot_via_millen_et_al_2020_w_tie_beams(k_rot_el, l_in, n_load, n_cap,
 
         if i == 99:
             return None
+
+
+def calc_recentring_ratio_via_deng_et_al_2014(a_ratio):
+    """
+    cite: Deng:2014bg
+
+    Parameters
+    ----------
+    a_ratio
+
+    Returns
+    -------
+
+    """
+    return 1.0 / (2.6 * a_ratio + 1)
+
+
+def calc_res_rot_via_deng_et_al_2014(a_ratio, peak_rot):
+    rd = calc_recentring_ratio_via_deng_et_al_2014(a_ratio)
+    z = (1 - rd) * peak_rot
+    return z
+
+
+def calc_evd_ratio_via_deng_et_al_2014(a_ratio, peak_rot, mok_ratio, hbrat=0.29):
+    """mok_ratio: Moment over initial stiffness ratio (same as h in Deng paper)"""
+    rd = calc_recentring_ratio_via_deng_et_al_2014(a_ratio)
+    evd_n1 = 1. / (2 * np.pi) * (3 - 3 * rd)
+    yield2_rot = mok_ratio / hbrat
+    evd = np.where(peak_rot >= yield2_rot, 1. / (2 * np.pi) * (4 - 3 * rd - yield2_rot / peak_rot), evd_n1 * (peak_rot - mok_ratio / 2) / (yield2_rot - mok_ratio / 2))
+    evd = np.clip(evd, 0, None)
+    if hasattr(a_ratio, '__len__') or hasattr(peak_rot, '__len__') or hasattr(mok_ratio, '__len__'):
+        return evd
+    return np.asscalar(evd)
+
+
+def view_calc_evd_ratio_via_deng_et_al_2014():
+    import matplotlib.pyplot as plt
+    mok_ratio = 0.01
+    one_o_ars = [4, 8, 15, 20, 30]
+    for i in range(len(one_o_ars)):
+        a_ratio = 1. / one_o_ars[i]
+        hbrat = 0.29
+        yield2_rot = mok_ratio / hbrat
+        prots = np.linspace(0, 8 * yield2_rot, 100)
+        evds = calc_evd_ratio_via_deng_et_al_2014(a_ratio, prots, mok_ratio, hbrat)
+        plt.plot(prots / yield2_rot, evds)
+    plt.show()
+
+
+if __name__ == '__main__':
+    view_calc_evd_ratio_via_deng_et_al_2014()
