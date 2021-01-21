@@ -551,7 +551,6 @@ class BeamSectionDesigner(object):
         self.selected_layer_locs[rot2] = [self.conc_cover + np.ceil(max_db_l0 / 2 * 1e3) / 1e3]
         self.selected_layer_locs[rot2].append(self.selected_layer_locs[rot2][0] + self.layer_spacing)
 
-
     def plot_section(self, **kwargs):
         """
         This function plots the cross-section based on the design from design()
@@ -563,70 +562,73 @@ class BeamSectionDesigner(object):
         self.SectionName = kwargs.get('section_name', self.SectionName)
 
         # Draw reinforcing
-        BEAMPROPS = self.selected_bar_arrangements
+        beam_props = self.selected_bar_arrangements
         layer_locs = self.selected_layer_locs
-        LX = self.selected_x_layers
-        MCAP = self.selected_moment_capacities
+        lx = self.selected_x_layers
+        m_cap = self.selected_moment_capacities
         # print('Beam props layer:',Beam_props[layer]
         # print('L_x',L_x[layer]
-        BIGFIG = plt.figure()
-        sectfig = BIGFIG.add_subplot(111)
+        bf = plt.figure()
+        splot = bf.add_subplot(111)
         rad = 361
 
         for rot in range(2):
-            Beam_props = BEAMPROPS[rot]
-            L_x = LX[rot]
-            Moment_cap = MCAP[rot]
+            beam_props_r = beam_props[rot]
+            lxr = lx[rot]
+            mom_cap_r = m_cap[rot]
             for layer in range(2):  # CHANGE THIS
                 bar_label = {}
                 if rot == 1:
                     y = self.depth - layer_locs[rot][layer]
                 else:
                     y = layer_locs[rot][layer]
-                for i in range(len(Beam_props[layer])):
+                for i in range(len(beam_props_r[layer])):
 
-                    circle1 = plt.Circle((L_x[layer][i], y), Beam_props[layer][i] / 2, color='k')
-                    sectfig.add_patch(circle1)
-                    bar_label[Beam_props[layer][i]] += 1
+                    circle1 = plt.Circle((lxr[layer][i], y), beam_props_r[layer][i] / 2, color='k')
+                    splot.add_patch(circle1)
+                    bsize = beam_props_r[layer][i]
+                    if bsize not in bar_label:
+                        bar_label[bsize] = 0
+                    bar_label[bsize] += 1
 
                 value = 0
                 for label in bar_label:
                     diameter = str(bar_label[label]) + '-D' + str(int(label * 1000))
                     if label != 0:
-                        sectfig.text(self.width + 0.10 * value + 0.05, y - 0.015, diameter)
+                        splot.text(self.width + 0.10 * value + 0.05, y - 0.015, diameter)
                     value += 1
             # Write moment capacity
-            M_cap_str = 'Mn= \n' + str(float(int(Moment_cap / 100)) / 10) + 'KNm'
-            sectfig.text(self.width + 0.05, self.depth / 2 - self.depth / 6 + rot * self.depth / 3,
-                         M_cap_str)
+            m_cap_str = 'Mn= \n' + str(float(int(mom_cap_r / 100)) / 10) + 'kNm'
+            splot.text(self.width + 0.05, self.depth / 2 - self.depth / 6 + rot * self.depth / 3,
+                         m_cap_str)
 
             # Draw selected beam option:
 
             # draw beam edge:
             x_edge = [0, self.width, self.width, 0, 0]
             y_edge = [0, 0, self.depth, self.depth, 0]
-            edge = sectfig.plot(x_edge, y_edge)
+            edge = splot.plot(x_edge, y_edge)
             plt.setp(edge, c='k', linewidth=1.5)
 
             # Centring and scaling image
             plot_size = max(self.width, self.depth) + 0.1
             # print plot_size
             extra = plot_size - self.width
-            sectfig.axis('equal')
-            sectfig.axis([-0.04 - extra / 2, self.width + extra / 2 + 0.04, -0.01, plot_size + 0.01])
+            splot.axis('equal')
+            splot.axis([-0.04 - extra / 2, self.width + extra / 2 + 0.04, -0.01, plot_size + 0.01])
 
-        sectfig.set_xlabel('Width (m)')
-        sectfig.set_ylabel('Depth (m)')
-        sectfig.set_title(self.SectionName)
+        splot.set_xlabel('Width [m]')
+        splot.set_ylabel('Depth [m]')
+        splot.set_title(self.SectionName)
         if save_on == 1:
             if not os.path.exists(self.SavePath):
                 os.makedirs(self.SavePath)
             figure_name = self.SavePath + self.SectionName + '.png'
-            BIGFIG.savefig(figure_name, format='png')
+            bf.savefig(figure_name, format='png')
         if show_plot == 1:
             plt.show()
 
-        del BIGFIG
+        del bf
         plt.clf()
         plt.close()
 

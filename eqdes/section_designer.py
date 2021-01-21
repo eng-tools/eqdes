@@ -1,7 +1,7 @@
 import numpy as np
 import os
 
-class BeamSection(object):
+class BeamSection(object):  # Deprecated - see eqdes.section.beam
     '''
     This object designs beam cross-sections
     '''
