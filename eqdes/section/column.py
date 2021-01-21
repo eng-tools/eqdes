@@ -66,7 +66,7 @@ class ColumnSection(object):
         M_coord = self.M_star / (self.Column_width * self.Column_depth ** 2)
         N_coord = self.N_star / (self.Column_width * self.Column_depth)
 
-        N_nuet = [0.45, 0.3, 0.2]
+        N_nuet = [0.45, 0.3, 0.2]  # TODO: improve column design
         for trial in range(3):
             M_axial_approx = self.N_star * (N_nuet[trial] * self.Column_depth)
             As_approx = (self.M_star - M_axial_approx) * 2 / (self.fy * 0.85 * self.Column_depth)
@@ -174,12 +174,12 @@ class ColumnSection(object):
                 else:
                     print('compression failure')
                     compression_fail = 1
-
+        score = []
         for i in range(len(db)):
             print('M_cap: ', M_cap[i])
             print('M_star: ', self.M_star)
             print('Column props: ', Column_props[i])
-            if M_cap[i] != 0 and M_cap[i] > self.M_star / 2:
+            if M_cap[i] != 0 and M_cap[i] > self.M_star * 0.99:
                 self.Column_data = Column_props[i]
                 self.Column_data.append(M_cap[i])
                 print(self.Column_data)
@@ -269,7 +269,7 @@ class ColumnSection(object):
 
 def run_example():
     moment = 250.0e3
-    axial = 150.0e3
+    axial = 50.0e3
     Column_length = 3.2
     depth = 0.5
     width = 0.4
@@ -277,7 +277,7 @@ def run_example():
     fy_col = 300e6
     e_mod_steel = 200.0e9
     min_column_depth = 0.5
-    preferred_bar_diam = 0.02
+    preferred_bar_diam = 0.025
     preferred_cover = 0.04
     layer_spacing = 0.04
 

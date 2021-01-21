@@ -245,10 +245,10 @@ def assess_rc_frame_w_sfsi_via_millen_et_al_2020(dfb, hz, sl, fd, theta_max, mcb
     return af
 
 
-def calc_base_moment_rotation(af, fd, sl, theta_col_y, mom_ratio=0.6, mcbs=None):
+def calc_base_moment_rotation(af, fd, sl, theta_col_y, mom_ratio=0.6, peak_rot=0.1, mcbs=None):
     if mcbs is None:  # provide mcbs if mu<1
         mcbs = fns.get_column_base_moments(af)
-    # Assume moment capacity is at 5x column yield rotation and has post-yield stiffness ratio of 0.01
+    # Assume column rotation at moment capacity is at 5x column yield rotation and has post-yield stiffness ratio of 0.01
     b = 0.01
     mu_peak = 5
     mybs = mcbs / (1 + (mu_peak - 1) * b)
@@ -282,10 +282,22 @@ def calc_base_moment_rotation(af, fd, sl, theta_col_y, mom_ratio=0.6, mcbs=None)
             nload = col_loads[i] + fd.pad.mass * 9.8
 
             m_cap = calc_moment_capacity_via_millen_et_al_2020(l_in, nload, pad.n_ult, psi, h_eff)
-            mom_f = np.linspace(0, min(0.99 * m_cap, mcbs[i]), 20)
+            mom_f = np.linspace(0, 0.99 * m_cap, 100)
             l_in = getattr(pad, ip_axis)
             k_f_0_pad = gf.stiffness.calc_rotational_via_gazetas_1991(sl, pad, ip_axis=ip_axis)
-            rot_fs = calc_fd_rot_via_millen_et_al_2020(k_f_0_pad, l_in, nload, pad.n_ult, psi, mom_f, h_eff)
+            rot_fs = calc_fd_rot_via_millen_et_al_2020(k_f_0_pad, l_in, nload, pad.n_ult, psi, mom_f, h_eff, mval=-1)
+            # TODO: build extra rot here
+
+            if max(rot_fs) < peak_rot:
+                extra_rot_points = int((peak_rot - max(rot_fs)) / (peak_rot / 20))
+                extra_rots = np.linspace(max(rot_fs), peak_rot, extra_rot_points + 1)[1:]
+                extra_moms = m_cap * np.ones_like(extra_rots)
+                rot_fs = np.concatenate([rot_fs, extra_rots])
+                mom_f = np.concatenate([mom_f, extra_moms])
+            # else:
+            #     inds = np.where(rot_fs < peak_rot)
+            #     rot_fs = rot_fs[inds]
+            #     mom_f = mom_f[inds]
             if i == 0 or i == len(col_loads) - 1:
                 k_tbs = k_ties
             else:
@@ -293,6 +305,18 @@ def calc_base_moment_rotation(af, fd, sl, theta_col_y, mom_ratio=0.6, mcbs=None)
 
             mom_f_plus_tbs = k_tbs * rot_fs + mom_f
             mom_ft_at_cb = mom_f_plus_tbs * (h1 * mom_ratio) / h_eff
+            if mybs[i] > mom_ft_at_cb[-1]:
+                rot_f_at_col_yield = np.interp(0.99 * mom_ft_at_cb[-1], mom_ft_at_cb, rot_fs)
+            else:
+                rot_f_at_col_yield = np.interp(mybs[i], mom_ft_at_cb, rot_fs)
+            mom_f_at_col_yield = np.interp(rot_f_at_col_yield, rot_fs, mom_f)
+            ind = sm.interp_left(rot_f_at_col_yield, rot_fs) + 1
+            rot_fs = np.insert(rot_fs, ind, rot_f_at_col_yield)
+            mom_ft_at_cb = np.insert(mom_ft_at_cb, ind, mybs[i])
+            mom_f = np.insert(mom_f, ind, mom_f_at_col_yield)
+
+
+            # TODO: insert mybs here
             rot_col = np.where(mom_ft_at_cb < mybs[i], mom_ft_at_cb / k_cols[i], theta_col_y + (mom_ft_at_cb - mybs[i]) / (k_cols[i] * b))
             rot_combo = rot_col + rot_fs
             # mom_c = np.interp(theta_col_p, rot_combo, mom_f_plus_tbs)
@@ -301,6 +325,10 @@ def calc_base_moment_rotation(af, fd, sl, theta_col_y, mom_ratio=0.6, mcbs=None)
             mom_combo_vals.append(mom_ft_at_cb)
             rot_f_vals.append(rot_fs)
             rot_col_vals.append(rot_col)
+        np.array(rot_f_vals, dtype=float)
+        np.array(rot_col_vals, dtype=float)
+        np.array(mom_f_vals, dtype=float)
+        np.array(mom_combo_vals, dtype=float)
         return np.array(rot_f_vals, dtype=float), np.array(rot_col_vals, dtype=float), \
                np.array(mom_f_vals, dtype=float), np.array(mom_combo_vals, dtype=float)
 
@@ -344,14 +372,10 @@ def push_over_rc_frame_w_sfsi_via_millen_et_al_2021(dfb, sl, fd, theta_max, mcbs
     iterations_ductility = kwargs.get('iterations_ductility', ductility_reduction_factors)
     iterations_rotation = kwargs.get('iterations_rotation', 20)
 
-    # TODO: if m_col_base is greater than m_foot then
     af.theta_y = dt.conc_frame_yield_drift(af.fye, af.concrete.e_mod_steel, af.av_bay, af.av_beam)
     theta_col_y = af.theta_y * 0.8
     m_col_bases = fns.get_column_base_moments(af)
     mom_ratio = 0.6
-    rot_f_vals, rot_col_vals, mom_f_vals, mom_combo_vals = calc_base_moment_rotation(af, fd, sl, theta_col_y, mom_ratio=mom_ratio)
-    otm_max = moment_equilibrium.calc_otm_capacity(af, mcbs=m_col_bases)
-    otm_max_from_beams = otm_max - np.sum(m_col_bases)
 
     displacements = dt.displacement_profile_frame(theta_max, af.heights, af.hm_factor)
     delta_max_fb, mass_eff_fb, height_eff_fb = dt.equivalent_sdof(af.storey_mass_p_frame[1:], displacements, af.heights)
@@ -360,6 +384,15 @@ def push_over_rc_frame_w_sfsi_via_millen_et_al_2021(dfb, sl, fd, theta_max, mcbs
     theta_p = 0.8 * af.theta_y
     max_drift_duct = theta_max / af.theta_y
     ducts = np.linspace(0.1, max_drift_duct, 10)
+    peak_rot = af.theta_y * ducts[-1]
+    # TODO: if m_col_base is greater than m_foot then
+
+    # Make sure that the peak rotation and the col yield rotation are included in the rot_col_vals output else inpter fails later
+    rot_f_vals, rot_col_vals, mom_f_vals, mom_combo_vals = calc_base_moment_rotation(af, fd, sl, theta_col_y,
+                                                                                     mom_ratio=mom_ratio, peak_rot=0.1)
+    otm_max = moment_equilibrium.calc_otm_capacity(af, mcbs=m_col_bases)
+    otm_max_from_beams = otm_max - np.sum(m_col_bases)
+
     disps = []
     vbases = []
     mfs = []
@@ -387,6 +420,7 @@ def push_over_rc_frame_w_sfsi_via_millen_et_al_2021(dfb, sl, fd, theta_max, mcbs
         mu_factor = dt.bilinear_load_factor(af.mu, af.max_mu, af.post_yield_stiffness_ratio)
         otm_from_beams = otm_max_from_beams * mu_factor
         otm_at_col_base = otm_from_beams + np.sum(mcbs_w_sfsi)  # TODO: could split 1st order and 2nd up
+        print('otm_at_col_base: ', otm_at_col_base, otm_from_beams, np.sum(mcbs_w_sfsi), theta_c,mom_combo_vals[2][-1])
         # Foundation behaviour
         eta_fshear = nf.foundation_shear_reduction_factor()
         af.delta_fshear = af.v_base / (0.5 * af.k_f0_shear)
@@ -435,4 +469,4 @@ def push_over_rc_frame_w_sfsi_via_millen_et_al_2021(dfb, sl, fd, theta_max, mcbs
         nfloads += axial_seismic * mu_factor
         # nfloads[-1] += -axial_seismic[-1] * mu_factor
         nfs.append(nfloads)
-    return vbases, disps, np.array(mfs), np.array(nfs)
+    return np.array(vbases), np.array(disps), np.array(mfs), np.array(nfs)

@@ -234,9 +234,9 @@ def calc_moment_capacity_via_millen_et_al_2020(l_in, n_load, n_cap, psi, h_eff):
     return n_load * l_in / 2 * f_a
 
 
-def calc_fd_rot_via_millen_et_al_2020(k_rot_el, l_in, n_load, n_cap, psi, m_f, h_eff, f_p=0.5):
+def calc_fd_rot_via_millen_et_al_2020(k_rot_el, l_in, n_load, n_cap, psi, m_f, h_eff, f_p=0.5, mval=None):
     m_cap = calc_moment_capacity_via_millen_et_al_2020(l_in, n_load, n_cap, psi, h_eff)
-    rot = np.where(m_f > m_cap, None, m_f * (np.log(m_cap / m_f) + f_p) / (k_rot_el * np.log(m_cap / m_f)))
+    rot = np.where(m_f > m_cap, mval, m_f * (np.log(m_cap / m_f) + f_p) / (k_rot_el * np.log(m_cap / m_f)))
     rot = np.where(m_f == 0, 0, rot)
     if not hasattr(m_f, '__len__'):
         return rot.item()
