@@ -77,7 +77,7 @@ def assess_rc_frame(fb, hz, theta_max, otm_max, **kwargs):
     return af
 
 
-def assess_rc_frame_w_sfsi_via_millen_et_al_2020(dfb, hz, sl, fd, theta_max, mcbs=None, **kwargs):
+def assess_rc_frame_w_sfsi_via_millen_et_al_2020(dfb, hz, sl, fd, theta_max, otm_max=None, mcbs=None, **kwargs):
     """
     Displacement-based assessment of a frame building considering SFSI
 
@@ -115,7 +115,8 @@ def assess_rc_frame_w_sfsi_via_millen_et_al_2020(dfb, hz, sl, fd, theta_max, mcb
     iterations_rotation = kwargs.get('iterations_rotation', 20)
     theta_c = theta_max
     # if m_col_base is greater than m_foot then
-    otm_max = moment_equilibrium.calc_otm_capacity(af)
+    if otm_max is None:
+        otm_max = moment_equilibrium.calc_otm_capacity(af)
     af.theta_y = dt.conc_frame_yield_drift(af.fye, af.concrete.e_mod_steel, af.av_bay, af.av_beam)
 
     for i in range(iterations_ductility):
@@ -187,19 +188,22 @@ def assess_rc_frame_w_sfsi_via_millen_et_al_2020(dfb, hz, sl, fd, theta_max, mcb
         af.storey_forces = dt.calculate_storey_forces(af.storey_mass_p_frame, displacements, af.v_base, btype='frame')
         # moment_beams_cl, moment_column_bases, axial_seismic = moment_equilibrium.assess(af, af.storey_forces, mom_ratio)
         mom_ratio = 0.6  # TODO: need to validate !
-        moment_column_bases = af.get_column_base_moments()
+        if mcbs is None:
+            mcbs = af.get_column_base_moments()
         # TODO: need to account for minimum column base moment which shifts mom_ratio
         h1 = af.interstorey_heights[0]
         h_eff = h1 * mom_ratio + fd.height
         pad = af.fd.pad
         pad.n_ult = af.soil_q * pad.area
         col_loads = af.get_column_vert_loads()
-        ext_nloads = max(col_loads[0])
-        int_nloads = np.max(col_loads[1:-1])
+        ext_nloads = col_loads[0, 0]
+        int_nloads = np.max(col_loads[1:-1, 0])
 
-        m_foot_int = np.max(moment_column_bases[1:-1]) * h_eff / (h1 * mom_ratio)
+        m_foot_int = np.max(mcbs[1:-1]) * h_eff / (h1 * mom_ratio)
         pad.n_load = int_nloads
-        tie_beams = getattr(fd, f'tie_beam_in_{ip_axis}_dir')
+        tie_beams = None
+        if hasattr(fd, f'tie_beam_in_{ip_axis}_dir'):
+            tie_beams = getattr(fd, f'tie_beam_in_{ip_axis}_dir')
         if tie_beams is not None:
             tb_sect = getattr(fd, f'tie_beam_in_{ip_axis}_dir').s[0]
             tb_length = (fd.length - (fd.pad_length * fd.n_pads_l)) / (fd.n_pads_l - 1)
@@ -219,7 +223,7 @@ def assess_rc_frame_w_sfsi_via_millen_et_al_2020(dfb, hz, sl, fd, theta_max, mcb
             m_cap = calc_moment_capacity_via_millen_et_al_2020(l_in, pad.n_load, pad.n_ult, psi, h_eff)
             raise DesignError(f"Assessment failed - interior footing moment demand ({m_foot_int/1e3:.3g})"
                               f" kNm exceeds capacity (~{m_cap/1e3:.3g} kNm)")
-        m_foot_ext = np.max(moment_column_bases[np.array([0, -1])]) * h_eff / (h1 * mom_ratio)
+        m_foot_ext = np.max(mcbs[np.array([0, -1])]) * h_eff / (h1 * mom_ratio)
         pad.n_load = ext_nloads
         # rot_epad = check_local_footing_rotations(sl, pad, m_foot_ext, h_eff, ip_axis=ip_axis, k_ties=k_ties)
         rot_epad = calc_fd_rot_via_millen_et_al_2020_w_tie_beams(k_f_0_pad, l_in, ext_nloads, pad.n_ult, psi,

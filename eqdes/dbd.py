@@ -183,12 +183,16 @@ def design_rc_frame_w_sfsi_via_millen_et_al_2020(fb, hz, sl, fd, design_drift=0.
 
         m_foot_int = np.max(moment_column_bases[1:-1]) * h_eff / df.interstorey_heights[0]
         pad.n_load = int_nloads
-        tb_sect = getattr(fd, f'tie_beam_sect_in_{ip_axis}_dir')
+        tie_beams = getattr(fd, f'tie_beam_in_{ip_axis}_dir')
         tb_length = (fd.length - (fd.pad_length * fd.n_pads_l)) / (fd.n_pads_l - 1)
-        if tb_sect is not None:
+        tie_beams = None
+        if hasattr(fd, f'tie_beam_in_{ip_axis}_dir'):
+            tie_beams = getattr(fd, f'tie_beam_in_{ip_axis}_dir')
+        if tie_beams is not None:
+            tb_sect = getattr(fd, f'tie_beam_in_{ip_axis}_dir').s[0]
             assert isinstance(tb_sect, sm.sections.RCBeamSection)
             # See supporting_docs/tie-beam-stiffness-calcs.pdf
-            k_ties = (6 * tb_sect.i_rot_ww_cracked * tb_sect.rc_mat.e_mod_conc) / tb_length
+            k_ties = (6 * tb_sect.i_rot_ww_cracked * tb_sect.mat.e_mod_conc) / tb_length
         else:
             k_ties = 0
         l_in = getattr(pad, ip_axis)

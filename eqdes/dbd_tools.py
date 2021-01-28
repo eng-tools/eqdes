@@ -64,9 +64,21 @@ def equivalent_sdof(masses, displacements, heights):
     mass_x_disp2 = masses * displacements ** 2
     mass_x_disp_x_height = masses * displacements * heights
 
-    delta_d = sum(mass_x_disp2) / sum(mass_x_disp)
-    mass_eff = sum(mass_x_disp) / delta_d
-    height_eff = sum(mass_x_disp_x_height) / sum(mass_x_disp)
+    delta_d = np.sum(mass_x_disp2, axis=0) / np.sum(mass_x_disp, axis=0)
+    mass_eff = np.sum(mass_x_disp, axis=0) / delta_d
+    height_eff = np.sum(mass_x_disp_x_height, axis=0) / np.sum(mass_x_disp, axis=0)
+
+    return delta_d, mass_eff, height_eff
+
+
+def equivalent_sdof_as_series(masses, displacements, heights):
+    mass_x_disp = masses[:, np.newaxis] * displacements
+    mass_x_disp2 = masses[:, np.newaxis] * displacements ** 2
+    mass_x_disp_x_height = masses[:, np.newaxis] * displacements * heights[:, np.newaxis]
+
+    delta_d = np.sum(mass_x_disp2, axis=0) / np.sum(mass_x_disp, axis=0)
+    mass_eff = np.sum(mass_x_disp, axis=0) / delta_d
+    height_eff = np.sum(mass_x_disp_x_height, axis=0) / np.sum(mass_x_disp, axis=0)
 
     return delta_d, mass_eff, height_eff
 

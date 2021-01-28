@@ -145,7 +145,7 @@ def set_column_base_moments_from_demands(df, moment_column_bases):
 
 def calc_otm_capacity(df, mcbs=None):  # and account for tie beams !!! and m_foots=None, h_foot=0
     if mcbs is None:
-        mcbs = df.get_column_base_moments()
+        mcbs = fns.get_column_base_moments(df)
     m_f_beams = fns.get_beam_face_moments(df, signs=('p', 'n'))
     v_beams = -np.diff(m_f_beams[:, :]).reshape((df.n_storeys, df.n_bays)) / df.bay_lengths[np.newaxis, :]
     # Assume contra-flexure at centre of beam

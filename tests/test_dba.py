@@ -8,6 +8,7 @@ from eqdes import models as dm
 from eqdes import design_spectra
 import sfsimodels as sm
 import geofound as gf
+import eqdes
 
 from tests.checking_tools import isclose
 
@@ -114,13 +115,10 @@ def load_system(n_bays=2, n_storeys=6):
     fd.pad_width = pad.width
     fd.pad.depth = fd.depth
     fd.pad.height = fd.height
-    tie_beams_sect = sm.sections.RCBeamSection()
-    tie_beams_sect.depth = fd.height
-    tie_beams_sect.width = fd.height
-    tie_beams_sect.rc_mat = sm.materials.ReinforcedConcreteMaterial()
-    tie_beams_sect.cracked_ratio = 0.6
-    fd.tie_beam_sect_in_width_dir = tie_beams_sect
-    fd.tie_beam_sect_in_length_dir = tie_beams_sect
+    tie_beams = sm.std.create_rc_beam(depth=fd.height, width=fd.height, n_sects=1)
+    tie_beams.set_section_prop('cracked_ratio', 0.6)
+    fd.tie_beam_in_width_dir = tie_beams
+    fd.tie_beam_in_length_dir = tie_beams
     x = fb.get_column_positions()
     x[0] = fd.pad_length / 2
     x[-1] = fd.length - fd.pad_length / 2
@@ -142,7 +140,18 @@ def test_dbd_sfsi_frame_via_millen_et_al_2020():
     assert np.isclose(designed_frame.delta_ss, 0.13432764512)
     assert np.isclose(designed_frame.delta_f, 0.0007801446), designed_frame.delta_f
 
+    ps = eqdes.moment_equilibrium.assess(designed_frame, designed_frame.storey_forces)
+    moment_beams_cl = ps[0]
+    moment_column_bases = ps[1]
+    axial_seismic = ps[2]
+    eqdes.moment_equilibrium.set_beam_face_moments_from_centreline_demands(fb, moment_beams_cl, centre_sect=True)
+    eqdes.moment_equilibrium.set_column_base_moments_from_demands(fb, moment_column_bases)
+    otm_max = eqdes.moment_equilibrium.calc_otm_capacity(fb)
+
     otm_max_approx = np.sum(designed_frame.storey_forces[1:] * designed_frame.heights)
 
-    af = dba.assess_rc_frame_w_sfsi_via_millen_et_al_2020(fb, hz, sp, fd, theta_max=designed_frame.design_drift, otm_max=otm_max_approx)
+    af = dba.assess_rc_frame_w_sfsi_via_millen_et_al_2020(fb, hz, sp, fd, theta_max=designed_frame.design_drift, otm_max=otm_max)
 
+
+if __name__ == '__main__':
+    test_dbd_sfsi_frame_via_millen_et_al_2020()
