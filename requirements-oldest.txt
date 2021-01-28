@@ -1,6 +1,6 @@
 numpy
-sfsimodels==0.7.19
-geofound==0.4.0
+sfsimodels==0.9.31
+geofound==1.0.8
 
 # testing
 pytest
