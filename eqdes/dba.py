@@ -196,8 +196,9 @@ def assess_rc_frame_w_sfsi_via_millen_et_al_2020(dfb, hz, sl, fd, theta_max, otm
         pad = af.fd.pad
         pad.n_ult = af.soil_q * pad.area
         col_loads = af.get_column_vert_loads()
-        ext_nloads = col_loads[0, 0]
-        int_nloads = np.max(col_loads[1:-1, 0])
+        col_loads = np.mean(col_loads, axis=1)  # average since multple frames
+        ext_nloads = col_loads[0]
+        int_nloads = np.max(col_loads[1:-1])
 
         m_foot_int = np.max(mcbs[1:-1]) * h_eff / (h1 * mom_ratio)
         pad.n_load = int_nloads
@@ -269,7 +270,7 @@ def calc_base_moment_rotation(af, fd, sl, theta_col_y, mom_ratio=0.6, peak_rot=0
         h_eff = h1 * mom_ratio + fd.height
         # k_f_0_pad = gf.stiffness.calc_rotational_via_gazetas_1991(sl, pad, ip_axis=ip_axis)
         col_loads = af.get_column_vert_loads()
-        col_loads = np.mean(col_loads, axis=1)  # use average
+        col_loads = np.mean(col_loads, axis=1)  # use average since it is for multiple frames - but want average
         if tie_beams is not None:
             tb_sect = getattr(fd, f'tie_beam_in_{ip_axis}_dir').s[0]
             tb_length = (fd.length - (fd.pad_length * fd.n_pads_l)) / (fd.n_pads_l - 1)
@@ -469,7 +470,8 @@ def push_over_rc_frame_w_sfsi_via_millen_et_al_2021(dfb, sl, fd, theta_max, mcbs
         mfs.append(mf)
         axial_seismic = moment_equilibrium.calc_seismic_axial_load_limit(af)
         col_loads = af.get_column_vert_loads()
-        nfloads = col_loads[:, 0] + fd.pad.mass * 9.8
+        col_loads = np.mean(col_loads, axis=1)
+        nfloads = col_loads + fd.pad.mass * 9.8
         nfloads += axial_seismic * mu_factor
         # nfloads[-1] += -axial_seismic[-1] * mu_factor
         nfs.append(nfloads)

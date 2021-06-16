@@ -3,9 +3,9 @@ import os
 
 
 class BeamSectionDesigner(object):
-    '''
+    """
     This object designs beam cross-sections
-    '''
+    """
 
     def __init__(self, m_demand, depth, width, f_c, f_y, min_col_depth, preferred_bar, preferred_cover,
                  layer_spacing, **kwargs):
@@ -633,16 +633,28 @@ class BeamSectionDesigner(object):
         plt.close()
 
 
+# if __name__ == '__main__':
+#     moment = [250.0e3, 150.0e3]
+#     depth = 0.5
+#     width = 0.4
+#     fc = 30e6
+#     fy = 300e6
+#     min_column_depth = 0.5
+#     preferred_bar_diam = 0.02
+#     preferred_cover = 0.04
+#     layer_spacing = 0.04
+#     beam = BeamSectionDesigner(moment, depth, width, fc, fy, min_column_depth, preferred_bar_diam, preferred_cover, layer_spacing)
+#     beam.plot_section()
+
 if __name__ == '__main__':
-    moment = [250.0e3, 150.0e3]
+    moment = [230.0e3, 230.0e3]
     depth = 0.5
-    width = 0.4
+    width = 0.35
     fc = 30e6
     fy = 300e6
     min_column_depth = 0.5
-    preferred_bar_diam = 0.02
+    preferred_bar_diam = 0.025
     preferred_cover = 0.04
     layer_spacing = 0.04
     beam = BeamSectionDesigner(moment, depth, width, fc, fy, min_column_depth, preferred_bar_diam, preferred_cover, layer_spacing)
     beam.plot_section()
-
