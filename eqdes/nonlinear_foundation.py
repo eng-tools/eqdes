@@ -1,4 +1,5 @@
 import numpy as np
+import geofound as gf
 from eqdes.extensions.exceptions import DesignError
 
 
@@ -323,6 +324,20 @@ def view_calc_evd_ratio_via_deng_et_al_2014():
     plt.show()
 
 
+
+
+def calc_mom_from_rot_salimath_2018(theta_f, fd, k_rot_el, m_cap):
+    l_ip = getattr(fd, fd.ip_axis)
+    l_oop = getattr(fd, fd.oop_axis)
+
+    if l_ip < l_oop:
+        chi = l_oop / l_ip - 0.02  # expression for moment about long axis
+    else:
+        chi = 2 * l_ip / l_oop  # expression for moment about short axis
+    beta = 1 / chi * (2 * fd.n_load / fd.n_cap + 0.6)
+    mom = theta_f / (beta / k_rot_el + theta_f / m_cap)
+    return mom
+
 def calc_rot_stiffness_ratio_gazetas_et_al_2013(theta_f, fd, k_rot_el):
     b = getattr(fd, fd.ip_axis)
     l = getattr(fd, fd.oop_axis)
@@ -332,18 +347,11 @@ def calc_rot_stiffness_ratio_gazetas_et_al_2013(theta_f, fd, k_rot_el):
     chi = 1 - 0.8 / fos
     norm_angle = n * b / (4 * k_rot_el * chi) * (1 - 0.22 * (1 - 1. / fos) ** 2 * (b / l) ** 0.2)
 
-
-def calc_mom_from_rot_salimath_2018(theta_f, fd, k_rot_el, m_cap):
+def calc_mom_from_rot_adamidis_et_al_2013(theta_f, fd, k_rot_el, fos):
     l_ip = getattr(fd, fd.ip_axis)
     l_oop = getattr(fd, fd.oop_axis)
-    if l_ip < l_oop:
-        chi = l_oop / l_ip - 0.02  # expression for moment about long axis
-    else:
-        chi = 2 * l_ip / l_oop  # expression for moment about short axis
-    beta = 1 / chi * (2 * fd.n_load / fd.n_cap + 0.6)
-    mom = theta_f / (beta / k_rot_el + theta_f / m_cap)
-    return mom
-
+    chi = 1 - 0.8 / fos
+    theta_s = fd.n_load * l_ip / (k_rot_el * chi) * (1 - 0.22 * (1 - 1 / fos) ** 2 * (lip / l_oop) ** 0.2)
 
 if __name__ == '__main__':
     view_calc_evd_ratio_via_deng_et_al_2014()
