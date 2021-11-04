@@ -1,5 +1,6 @@
 
 import numpy as np
+import sfsimodels as sm
 from eqdes import models as em
 
 
@@ -52,27 +53,23 @@ def initialise_frame_building_test_data():
     return fb
 
 
-def initialise_wall_building_test_data():
+def initialise_single_wall_test_data():
     """
     Sample data for the WallBuilding object
 
     :return: WallBuilding
     """
     number_of_storeys = 6
-    wb = em.WallBuilding(number_of_storeys)
-    wb.material = em.ReinforcedConcrete()
+    sw = sm.SingleWall(number_of_storeys)
+    sw.material = em.ReinforcedConcrete()
 
     interstorey_height = 3.4  # m
-    masses = 40.0e3  # kg
-
-    wb.interstorey_heights = interstorey_height * np.ones(number_of_storeys)
-    wb.floor_length = 18.0  # m
-    wb.floor_width = 16.0  # m
-    wb.storey_masses = masses * np.ones(number_of_storeys)  # kg
-
-    wb.n_walls = 4
-    wb.wall_depth = 2.0
-    return wb
+    masses = 10.0e3  # kg
+    sw.interstorey_heights = interstorey_height * np.ones(number_of_storeys)
+    sw.storey_masses = masses * np.ones(number_of_storeys)  # kg
+    sw.storey_n_loads = 0.5 * sw.storey_masses
+    sw.wall_depth = 2.0
+    return sw
 
 
 def load_soil_test_data(sl):

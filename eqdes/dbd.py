@@ -323,18 +323,18 @@ def design_rc_frame_w_sfsi_via_millen_et_al_2018(fb, hz, sl, fd, design_drift=0.
 
 
 
-def design_rc_wall(wb, hz, design_drift=0.025, **kwargs):
+def design_rc_wall(sw, hz, design_drift=0.025, **kwargs):
     """
     Displacement-based design of a reinforced concrete wall.
 
-    :param wb: WallBuilding object
+    :param sw: SingleWall object
     :param hz: Hazard Object
     :param design_drift: Design drift
     :param kwargs:
     :return: DesignedWall object
     """
 
-    dw = em.DesignedRCWall(wb, hz)
+    dw = em.DesignedRCWall(sw, hz)
     dw.design_drift = design_drift
     verbose = kwargs.get('verbose', dw.verbose)
     dw.static_dbd_values()
@@ -375,7 +375,7 @@ def design_rc_wall(wb, hz, design_drift=0.025, **kwargs):
 
         displacements = delta_ls * dw.hm_factor
 
-        dw.delta_d, dw.mass_eff, dw.height_eff = dt.equivalent_sdof(dw.storey_mass_p_wall, displacements, dw.heights)
+        dw.delta_d, dw.mass_eff, dw.height_eff = dt.equivalent_sdof(dw.storey_mass, displacements, dw.heights)
         delta_y = dt.yield_displacement_wall(phi_y, dw.height_eff, dw.max_height)
         dw.mu = dt.ductility(dw.delta_d, delta_y)
         dw.xi = dt.equivalent_viscous_damping(dw.mu, mtype="concrete", btype="wall")
@@ -399,7 +399,7 @@ def design_rc_wall(wb, hz, design_drift=0.025, **kwargs):
                 print("drift %.2f is not compatible" % reduced_theta_p)
     k_eff = dt.effective_stiffness(dw.mass_eff, dw.t_eff)
     dw.v_base = dt.design_base_shear(k_eff, dw.delta_d)
-    dw.storey_forces = dt.calculate_storey_forces(dw.storey_mass_p_wall, displacements, dw.v_base, btype='wall')
+    dw.storey_forces = dt.calculate_storey_forces(dw.storey_mass, displacements, dw.v_base, btype='wall')
     return dw
 
 

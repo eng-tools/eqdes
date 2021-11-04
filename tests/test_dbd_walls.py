@@ -68,18 +68,18 @@ def to_be_test_ddbd_sfsi_wall_from_millen_pdf_paper_2018():
 
 def test_case_study_wall_pbd_wall_fixed_base():
     n_storeys = 6
-    wb = dm.WallBuilding(n_storeys)
+    wb = sm.SingleWall(n_storeys)
     wb.wall_width = 0.3  # m
     wb.wall_depth = 3.4  # m
     wb.interstorey_heights = 3.4 * np.ones(n_storeys)  # m
     wb.n_walls = 1
-    wb.floor_length = 20 / 2  # m
-    wb.floor_width = 12 / 2  # m
+    floor_length = 20 / 2  # m
+    floor_width = 12 / 2  # m
     g_load = 6000.  # Pa
     q_load = 3000.  # Pa
     eq_load_factor = 0.4
     floor_pressure = g_load + eq_load_factor * q_load
-    wb.set_storey_masses_by_pressure(floor_pressure)
+    wb.storey_masses = floor_pressure * floor_length * floor_width * np.ones(n_storeys)
 
     # hazard
     hz = dm.Hazard()
@@ -96,18 +96,18 @@ def test_case_study_wall_pbd_wall_fixed_base():
 
 def test_case_study_wall_pbd_wall_w_sfsi():
     n_storeys = 6
-    wb = dm.WallBuilding(n_storeys)
+    wb = sm.SingleWall(n_storeys)
     wb.wall_width = 0.3  # m
     wb.wall_depth = 3.4  # m
     wb.interstorey_heights = 3.4 * np.ones(n_storeys)  # m
     wb.n_walls = 1
-    wb.floor_length = 20 / 2  # m
-    wb.floor_width = 12 / 2  # m
+    floor_length = 20 / 2  # m
+    floor_width = 12 / 2  # m
     g_load = 6000.  # Pa
     q_load = 3000.  # Pa
     eq_load_factor = 0.4
     floor_pressure = g_load + eq_load_factor * q_load
-    wb.set_storey_masses_by_pressure(floor_pressure)
+    wb.storey_masses = floor_pressure * floor_length * floor_width * np.ones(n_storeys)
 
     fd = dm.RaftFoundation()
     fd.height = 1.3
@@ -151,7 +151,7 @@ def test_ddbd_wall_fixed():
 
     hz = dm.Hazard()
     ml.load_hazard_test_data(hz)
-    wb = ml.initialise_wall_building_test_data()
+    wb = ml.initialise_single_wall_test_data()
     wall_dbd = dbd.design_rc_wall(wb, hz)
 
     assert isclose(wall_dbd.delta_d, 0.339295, rel_tol=0.001), wall_dbd.delta_d

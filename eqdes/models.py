@@ -1,6 +1,6 @@
 import numpy as np
 
-from sfsimodels import models as sm
+import sfsimodels as sm
 from sfsimodels import output as mo
 import geofound
 from eqdes import nonlinear_foundation as nf
@@ -142,7 +142,7 @@ class DesignedRCFrame(FrameBuilding):
         self.beam_group_size = 2
 
 
-class DesignedRCWall(WallBuilding):
+class DesignedRCWall(sm.SingleWall):
     method = "standard"
     preferred_bar_diameter = 0.032
 
@@ -164,15 +164,15 @@ class DesignedRCWall(WallBuilding):
     v_base = 0.0
     storey_forces = 0.0
 
-    def __init__(self, wb, hz, verbose=0):
-        super(DesignedRCWall, self).__init__(wb.n_storeys)  # run parent class initialiser function
-        self.__dict__.update(wb.__dict__)
+    def __init__(self, sw, hz, verbose=0):
+        super(DesignedRCWall, self).__init__(sw.n_storeys)  # run parent class initialiser function
+        self.__dict__.update(sw.__dict__)
         self.hz.__dict__.update(hz.__dict__)
         self.verbose = verbose
-        assert wb.material.type == 'rc_material'
-        self.concrete = wb.material
+        assert sw.material.type == 'rc_material'
+        self.concrete = sw.material
         self.fye = 1.1 * self.concrete.fy
-        self.storey_mass_p_wall = self.storey_masses / self.n_walls
+        self.storey_mass = self.storey_masses
         self.storey_forces = np.zeros((1, len(self.storey_masses)))
         self.hm_factor = dt.cal_higher_mode_factor(self.n_storeys, btype="wall")
         self._extra_class_variables = ["method"]
