@@ -309,11 +309,11 @@ class DesignedSFSIRCWall(DesignedRCWall):
         self.zeta = 1.5
 
     def static_values(self):
-        self.total_weight = (sum(self.storey_masses) + self.fd.mass) * self.g
+        self.total_weight = sum(self.storey_n_loads) + self.fd.mass * self.g
         soil_q = geofound.capacity_salgado_2008(sl=self.sl, fd=self.fd)
 
         # Deal with both raft and pad foundations
-        self.bearing_capacity = nf.bearing_capacity(self.fd.area, soil_q)
+        self.bearing_capacity = self.fd.area * soil_q
         self.axial_load_ratio = self.bearing_capacity / self.total_weight
 
         self.theta_pseudo_up = nf.calculate_pseudo_uplift_angle(self.total_weight, self.fd.width, self.k_f_0,

@@ -1,6 +1,7 @@
 
 import numpy as np
 
+import eqdes.dbd.dbd_wall
 import eqdes.nonlinear_foundation
 from tests import models_for_testing as ml
 from eqdes import dbd
@@ -79,7 +80,7 @@ def test_case_study_wall_pbd_wall_fixed_base():
     q_load = 3000.  # Pa
     eq_load_factor = 0.4
     floor_pressure = g_load + eq_load_factor * q_load
-    wb.storey_masses = floor_pressure * floor_length * floor_width * np.ones(n_storeys)
+    wb.storey_masses = floor_pressure * floor_length * floor_width * np.ones(n_storeys) / 9.8
 
     # hazard
     hz = dm.Hazard()
@@ -91,7 +92,7 @@ def test_case_study_wall_pbd_wall_fixed_base():
     hz.corner_acc_factor = 0.4
 
     wb.material = sm.materials.ReinforcedConcreteMaterial()
-    dw = dbd.design_rc_wall(wb, hz, design_drift=0.025)
+    dw = eqdes.dbd.dbd_wall.design_rc_wall(wb, hz, design_drift=0.025)
 
 
 def test_case_study_wall_pbd_wall_w_sfsi():
@@ -107,7 +108,7 @@ def test_case_study_wall_pbd_wall_w_sfsi():
     q_load = 3000.  # Pa
     eq_load_factor = 0.4
     floor_pressure = g_load + eq_load_factor * q_load
-    wb.storey_masses = floor_pressure * floor_length * floor_width * np.ones(n_storeys)
+    wb.storey_masses = floor_pressure * floor_length * floor_width * np.ones(n_storeys) / 9.8
 
     fd = dm.RaftFoundation()
     fd.height = 1.3
@@ -143,8 +144,10 @@ def test_case_study_wall_pbd_wall_w_sfsi():
 
     wb.material = sm.materials.ReinforcedConcreteMaterial()
     # dw = dbd.wall(wb, hz, design_drift=0.025)
-    dw = dbd.design_rc_wall_via_millen_et_al_2020(wb, hz, sl, fd, design_drift=0.025)
-    print(dw.delta_d)
+    dw = eqdes.dbd.design_rc_wall_w_sfsi_via_millen_et_al_2020(wb, hz, sl, fd, design_drift=0.025)
+    assert np.isclose(dw.delta_d, 0.282773, rtol=0.001), dw.delta_d
+    assert np.isclose(dw.v_base, 354451.990, rtol=0.001), dw.v_base
+    assert np.isclose(dw.m_base, 4435939.0475, rtol=0.001), dw.m_base
 
 
 def test_ddbd_wall_fixed():
@@ -152,7 +155,7 @@ def test_ddbd_wall_fixed():
     hz = dm.Hazard()
     ml.load_hazard_test_data(hz)
     wb = ml.initialise_single_wall_test_data()
-    wall_dbd = dbd.design_rc_wall(wb, hz)
+    wall_dbd = eqdes.dbd.dbd_wall.design_rc_wall(wb, hz)
 
     assert isclose(wall_dbd.delta_d, 0.339295, rel_tol=0.001), wall_dbd.delta_d
     assert isclose(wall_dbd.mass_eff, 59429.632, rel_tol=0.001), wall_dbd.mass_eff
@@ -163,3 +166,6 @@ def test_ddbd_wall_fixed():
     assert isclose(wall_dbd.eta, 0.86946, rel_tol=0.001), wall_dbd.eta
     assert isclose(wall_dbd.t_eff, 2.38184, rel_tol=0.001), wall_dbd.t_eff
 
+
+if __name__ == '__main__':
+    test_case_study_wall_pbd_wall_w_sfsi()
