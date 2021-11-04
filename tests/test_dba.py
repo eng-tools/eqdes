@@ -136,9 +136,9 @@ def test_dbd_sfsi_frame_via_millen_et_al_2020():
     print('delta_ss: ', designed_frame.delta_ss)
     print('delta_f: ', designed_frame.delta_f)
     print(designed_frame.axial_load_ratio)
-    assert np.isclose(designed_frame.axial_load_ratio, 4.54454554)
-    assert np.isclose(designed_frame.delta_ss, 0.13432764512)
-    assert np.isclose(designed_frame.delta_f, 0.0007801446), designed_frame.delta_f
+    assert np.isclose(designed_frame.axial_load_ratio, 4.64792318), designed_frame.axial_load_ratio
+    assert np.isclose(designed_frame.delta_ss, 0.135190692, rtol=0.001), designed_frame.delta_ss
+    assert np.isclose(designed_frame.delta_f, 0.00075829, rtol=0.001), designed_frame.delta_f
 
     ps = eqdes.moment_equilibrium.assess(designed_frame, designed_frame.storey_forces)
     moment_beams_cl = ps[0]

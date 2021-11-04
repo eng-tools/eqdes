@@ -158,17 +158,6 @@ def calc_foundation_rotational_stiffness_ratio_millen_et_al_2018(cor_norm_rot):
     return stiff_ratio
 
 
-def foundation_rotation_stiffness_ratio(cor_norm_rot, method="Millen"):
-    """
-    Returns the degradation of foundation stiffness for a given normalised foundation rotation
-    """
-    func_map = {
-        "Millen": foundation_rotation_stiffness_ratio_millen,
-
-    }
-    return func_map[method](cor_norm_rot)
-
-
 def calculate_pseudo_uplift_angle(weight, width, k_f_0, axial_load_ratio, alpha, zeta=1.5):
     """
     Calculates the pseudo uplift angle according to Chatzigogos et al. (2011)

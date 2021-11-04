@@ -151,63 +151,9 @@ def test_dbd_sfsi_frame_via_millen_et_al_2018():
 
     design_drift = 0.02
 
-    frame_ddbd = dbd.design_rc_frame_w_sfsi_via_millen_et_al_2018(fb, hz, sl, fd, design_drift=design_drift, verbose=2)
-    assert np.isclose(frame_ddbd.delta_d, 0.08488596), frame_ddbd.delta_d
-    assert np.isclose(frame_ddbd.theta_f, 0.0050136357), frame_ddbd.theta_f
-
-
-def to_be_test_ddbd_sfsi_wall_from_millen_pdf_paper_2018():
-    fb = dm.FrameBuilding()
-    sl = dm.Soil()
-    fd = dm.PadFoundation()
-    hz = dm.Hazard()
-    fb.id = 1
-    fb.wall_depth = 3.4
-    fb.wall_width = 0.3
-    fb.number_walls = 4
-    fb.interstorey_heights = 3.4 * np.ones(fb.n_storeys)
-    fb.name = 'My' + str(fb.n_storeys) + 'storeyRBwall'  # character String
-    fb.building_length = 20.0
-    fb.building_width = 12.0  # m
-    fb.raft_foundation = 0
-
-    fd.height = 1.0
-    fd.width = 5.5
-
-    fb.DBaspect = 0.2
-    fb.LBaspect = 2.5
-    # loads:
-    fb.gravity = 9.8
-    fb.soil_type = 'C'
-    hz.z_factor = design_spectra.calculate_z(0.4, fb.soil_type)
-    hz.r_factor = 1.0
-    hz.n_factor = 1.0
-
-    fb.Live_load = 3.0e3  # Pa
-    fb.floor_weight = 0.0e3  # Pa
-    fb.additional_weight = 6.0e3  # Pa    #partitions, ceilings, serivces
-    fb.wall_axial_contribution = 1.0
-    fb.conc_weight = 23.5e3
-    # Design options:
-
-    drift_limit = 0.012
-    foundation_rotation = 0.0009
-
-    # Soil properties
-    sl.g_mod = 40e6  # Pa
-    sl.poissons_ratio = 0.3  # Poisson's ratio of the soil
-    sl.relative_density = 0.60  # %
-    sl.phi = 36
-    sl.unit_moist_weight = 18e3  # N/m3
-    sl.cohesion = 0
-
-    #############################
-    # Material info
-    fb.fy = 300e6
-    sl.E_s = 200e9
-    sl.fc = 30e6  # Pa
-    sl.E_conc = (3320 * np.sqrt(40.0) + 6900.0) * 1e6  # 37000000000;   #Pa    (3320*sqrt(40.0)+6900.0)*1e6
-    sl.Conc_Poissons_ratio = 0.18
+    frame_ddbd = dbd.design_rc_frame_w_sfsi_via_millen_et_al_2018(fb, hz, sl, fd, design_drift=design_drift, verbose=0)
+    assert np.isclose(frame_ddbd.delta_d, 0.09539996671), frame_ddbd.delta_d
+    assert np.isclose(frame_ddbd.theta_f, 0.0047127, rtol=0.001), frame_ddbd.theta_f
 
 
 def load_system(n_bays=2, n_storeys=6):
@@ -248,7 +194,7 @@ def load_system(n_bays=2, n_storeys=6):
     fd.depth = 0.4 + 0.1 * fb.n_storeys  # m
     fd.height = 1.0  # m
     fd.mass = 0.0  # kg
-    pad = gf.size_footing_for_capacity(sp, np.max(col_loads), method='salgado', fos=3., depth=fd.depth)
+    pad = gf.size_footing_for_capacity(sp, np.max(col_loads), method='salgado', fos=4., depth=fd.depth)
     fd.pad_length = pad.length
     fd.pad_width = pad.width
     fd.pad.depth = fd.depth
@@ -277,160 +223,9 @@ def test_dbd_sfsi_frame_via_millen_et_al_2020():
     print('delta_ss: ', designed_frame.delta_ss)
     print('delta_f: ', designed_frame.delta_f)
     print(designed_frame.axial_load_ratio)
-    assert np.isclose(designed_frame.axial_load_ratio, 4.54454554)
-    assert np.isclose(designed_frame.delta_ss, 0.13432764512)
-    assert np.isclose(designed_frame.delta_f, 0.0007801446), designed_frame.delta_f
-
-
-def test_case_study_wall_pbd_wall_fixed_base():
-    n_storeys = 6
-    wb = dm.WallBuilding(n_storeys)
-    wb.wall_width = 0.3  # m
-    wb.wall_depth = 3.4  # m
-    wb.interstorey_heights = 3.4 * np.ones(n_storeys)  # m
-    wb.n_walls = 1
-    wb.floor_length = 20 / 2  # m
-    wb.floor_width = 12 / 2  # m
-    g_load = 6000.  # Pa
-    q_load = 3000.  # Pa
-    eq_load_factor = 0.4
-    floor_pressure = g_load + eq_load_factor * q_load
-    wb.set_storey_masses_by_pressure(floor_pressure)
-
-    # hazard
-    hz = dm.Hazard()
-    hz.z_factor = 0.4  # Hazard factor
-    hz.r_factor = 1.0  # Return period factor
-    hz.n_factor = 1.0  # Near-fault factor
-    hz.magnitude = 7.5  # Magnitude of earthquake
-    hz.corner_period = 3.0  # s
-    hz.corner_acc_factor = 0.4
-
-    wb.material = sm.materials.ReinforcedConcreteMaterial()
-    dw = dbd.design_rc_wall(wb, hz, design_drift=0.025)
-
-
-def test_case_study_wall_pbd_wall_w_sfsi():
-    n_storeys = 6
-    wb = dm.WallBuilding(n_storeys)
-    wb.wall_width = 0.3  # m
-    wb.wall_depth = 3.4  # m
-    wb.interstorey_heights = 3.4 * np.ones(n_storeys)  # m
-    wb.n_walls = 1
-    wb.floor_length = 20 / 2  # m
-    wb.floor_width = 12 / 2  # m
-    g_load = 6000.  # Pa
-    q_load = 3000.  # Pa
-    eq_load_factor = 0.4
-    floor_pressure = g_load + eq_load_factor * q_load
-    wb.set_storey_masses_by_pressure(floor_pressure)
-
-    fd = dm.RaftFoundation()
-    fd.height = 1.3
-    fd.length = 5.6  # m # from HDF
-    fd.width = 2.25  # m # from HDF
-    fd.depth = 0.0  # TODO: check this
-    fd.mass = 0.0
-
-    # soil properties from HDF
-    sl = dm.Soil()
-    sl.g_mod = 40e6  # Pa
-    sl.poissons_ratio = 0.3
-    sl.phi = 36.0  # degrees
-    # sl.phi_r = np.radians(sl.phi)
-    sl.cohesion = 0.0
-    sl.unit_dry_weight = 18000.  # TODO: check this
-
-    # hazard
-    hz = dm.Hazard()
-    hz.z_factor = 0.4  # Hazard factor
-    hz.r_factor = 1.0  # Return period factor
-    hz.n_factor = 1.0  # Near-fault factor
-    hz.magnitude = 7.5  # Magnitude of earthquake
-    hz.corner_period = 3.0  # s
-    hz.corner_acc_factor = 0.4
-
-    n_wall_eq = np.sum(wb.storey_masses) / wb.n_walls * 9.8
-    n_cap_from_hdf = 12.1e6  # N
-    n_wall_eq_from_hdf = 2.31e6  # N
-
-    # n_from_input_file = (4.0e2 + 1.905e3) * 1e3
-    alpha = 4.
-
-    wb.material = sm.materials.ReinforcedConcreteMaterial()
-    # dw = dbd.wall(wb, hz, design_drift=0.025)
-    dw = dbd.design_rc_wall_via_millen_et_al_2020(wb, hz, sl, fd, design_drift=0.025)
-    print(dw.delta_d)
-
-
-def test_ddbd_wall_fixed():
-
-    hz = dm.Hazard()
-    ml.load_hazard_test_data(hz)
-    wb = ml.initialise_wall_building_test_data()
-    wall_dbd = dbd.design_rc_wall(wb, hz)
-
-    assert isclose(wall_dbd.delta_d, 0.339295, rel_tol=0.001), wall_dbd.delta_d
-    assert isclose(wall_dbd.mass_eff, 59429.632, rel_tol=0.001), wall_dbd.mass_eff
-    assert isclose(wall_dbd.height_eff, 12.46885, rel_tol=0.001), wall_dbd.height_eff
-    assert isclose(wall_dbd.mu, 1.1902, rel_tol=0.001), wall_dbd.mu
-    assert isclose(wall_dbd.theta_y, 0.0168299, rel_tol=0.001), wall_dbd.theta_y
-    assert isclose(wall_dbd.xi, 0.07259, rel_tol=0.001), wall_dbd.xi
-    assert isclose(wall_dbd.eta, 0.86946, rel_tol=0.001), wall_dbd.eta
-    assert isclose(wall_dbd.t_eff, 2.38184, rel_tol=0.001), wall_dbd.t_eff
-
-
-def test_calculate_rotation_via_millen_et_al_2020():
-    mom = 200.
-    k_rot = 1000.0e2
-    psi = 0.4
-    h_eff = 3.0
-    l_in = 3.0
-    n_load = 300.
-    n_cap = 3000.
-    theta = eqdes.nonlinear_foundation.calc_fd_rot_via_millen_et_al_2020_alt_form(k_rot, l_in, n_load, n_cap, psi, mom, h_eff)
-    assert np.isclose(theta, 0.0053710398), theta
-    theta = eqdes.nonlinear_foundation.calc_fd_rot_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom, h_eff)
-    assert np.isclose(theta, 0.0053710398), theta
-
-    n_load = 2000.
-    n_cap = 3000.
-    l_in = 5.0
-    mom = 100.
-    theta = eqdes.nonlinear_foundation.calc_fd_rot_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom, h_eff)
-    assert np.isclose(theta, 0.0011910855), theta
-
-    # very large moment
-    mom = 3000.
-    theta = eqdes.nonlinear_foundation.calc_fd_rot_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom, h_eff)
-    assert theta is None
-
-    # n_load equal to n_cap
-    mom = 10
-    n_load = 300.
-    n_cap = 300.
-    theta = eqdes.nonlinear_foundation.calc_fd_rot_via_millen_et_al_2020_alt_form(k_rot, l_in, n_load, n_cap, psi, mom, h_eff)
-    assert theta is None
-
-
-def test_calc_fd_rot_via_millen_et_al_2020_w_tie_beams():
-    k_rot = 1000.0e2
-    k_tbs = 100.0e2
-    psi = 0.4
-    h_eff = 3.0
-    l_in = 3.0
-    n_load = 300.
-    n_cap = 3000.
-
-    mom = 308.5
-
-    theta_w_tbs = eqdes.nonlinear_foundation.calc_fd_rot_via_millen_et_al_2020_w_tie_beams(k_rot, l_in, n_load, n_cap, psi, mom,
-                                                                                           h_eff,
-                                                                                           k_tbs=k_tbs)
-
-    mom_tbs = theta_w_tbs * k_tbs
-    rots_adj = eqdes.nonlinear_foundation.calc_fd_rot_via_millen_et_al_2020(k_rot, l_in, n_load, n_cap, psi, mom - mom_tbs, h_eff)
-    assert np.isclose(theta_w_tbs, rots_adj, rtol=0.01)
+    assert np.isclose(designed_frame.axial_load_ratio, 6.32337676)
+    assert np.isclose(designed_frame.delta_ss, 0.1346882, rtol=0.001)
+    assert np.isclose(designed_frame.delta_f, 0.00075829, rtol=0.001), designed_frame.delta_f
 
 
 if __name__ == '__main__':

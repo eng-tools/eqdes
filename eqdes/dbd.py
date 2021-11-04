@@ -190,9 +190,10 @@ def design_rc_frame_w_sfsi_via_millen_et_al_2020(fb, hz, sl, fd, design_drift=0.
             tie_beams = getattr(fd, f'tie_beam_in_{ip_axis}_dir')
         if tie_beams is not None:
             tb_sect = getattr(fd, f'tie_beam_in_{ip_axis}_dir').s[0]
+            e_mod_conc = sm.materials.calc_e_mod_conc_via_mander_1988(tb_sect.mat.fc)
             assert isinstance(tb_sect, sm.sections.RCBeamSection)
             # See supporting_docs/tie-beam-stiffness-calcs.pdf
-            k_ties = (6 * tb_sect.i_rot_ww_cracked * tb_sect.mat.e_mod_conc) / tb_length
+            k_ties = (6 * tb_sect.i_rot_ww_cracked * e_mod_conc) / tb_length
         else:
             k_ties = 0
         l_in = getattr(pad, ip_axis)
@@ -296,7 +297,7 @@ def design_rc_frame_w_sfsi_via_millen_et_al_2018(fb, hz, sl, fd, design_drift=0.
         df.v_base = v_base_dynamic + v_base_p_delta
         df.storey_forces = dt.calculate_storey_forces(df.storey_mass_p_frame, displacements, df.v_base, btype='frame')
 
-        stiffness_ratio = nf.foundation_rotation_stiffness_ratio(cor_norm_rot)
+        stiffness_ratio = nf.calc_foundation_rotational_stiffness_ratio_millen_et_al_2018(cor_norm_rot)
         k_f_eff = df.k_f_0 * stiffness_ratio
         temp_found_rot = found_rot
         moment_f = df.v_base * df.height_eff

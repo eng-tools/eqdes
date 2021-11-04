@@ -210,7 +210,8 @@ def assess_rc_frame_w_sfsi_via_millen_et_al_2020(dfb, hz, sl, fd, theta_max, otm
             tb_length = (fd.length - (fd.pad_length * fd.n_pads_l)) / (fd.n_pads_l - 1)
             assert isinstance(tb_sect, sm.sections.RCBeamSection)
             # See supporting_docs/tie-beam-stiffness-calcs.pdf
-            k_ties = (6 * tb_sect.i_rot_ww_cracked * tb_sect.mat.e_mod_conc) / tb_length
+            e_mod_conc = sm.materials.calc_e_mod_conc_via_mander_1988(tb_sect.mat.fc)
+            k_ties = (6 * tb_sect.i_rot_ww_cracked * e_mod_conc) / tb_length
         else:
             k_ties = 0
         l_in = getattr(pad, ip_axis)
