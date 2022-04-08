@@ -109,6 +109,7 @@ def test_case_study_wall_pbd_wall_w_sfsi():
     eq_load_factor = 0.4
     floor_pressure = g_load + eq_load_factor * q_load
     wb.storey_masses = floor_pressure * floor_length * floor_width * np.ones(n_storeys) / 9.8
+    wb.storey_n_loads = 9.8 * wb.storey_masses
 
     fd = dm.RaftFoundation()
     fd.height = 1.3

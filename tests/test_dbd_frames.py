@@ -152,8 +152,8 @@ def test_dbd_sfsi_frame_via_millen_et_al_2018():
     design_drift = 0.02
 
     frame_ddbd = dbd.design_rc_frame_w_sfsi_via_millen_et_al_2018(fb, hz, sl, fd, design_drift=design_drift, verbose=0)
-    assert np.isclose(frame_ddbd.delta_d, 0.09539996671), frame_ddbd.delta_d
-    assert np.isclose(frame_ddbd.theta_f, 0.0047127, rtol=0.001), frame_ddbd.theta_f
+    assert np.isclose(frame_ddbd.delta_d, 0.08488596427), frame_ddbd.delta_d
+    assert np.isclose(frame_ddbd.theta_f, 0.00501363, rtol=0.001), frame_ddbd.theta_f
 
 
 def load_system(n_bays=2, n_storeys=6):
@@ -223,9 +223,9 @@ def test_dbd_sfsi_frame_via_millen_et_al_2020():
     print('delta_ss: ', designed_frame.delta_ss)
     print('delta_f: ', designed_frame.delta_f)
     print(designed_frame.axial_load_ratio)
-    assert np.isclose(designed_frame.axial_load_ratio, 6.32337676)
-    assert np.isclose(designed_frame.delta_ss, 0.1346882, rtol=0.001)
-    assert np.isclose(designed_frame.delta_f, 0.00075829, rtol=0.001), designed_frame.delta_f
+    assert np.isclose(designed_frame.axial_load_ratio, 6.155229455)
+    assert np.isclose(designed_frame.delta_ss, 0.13399949371, rtol=0.001)
+    assert np.isclose(designed_frame.delta_f, 0.000780144597, rtol=0.001), designed_frame.delta_f
 
 
 if __name__ == '__main__':
