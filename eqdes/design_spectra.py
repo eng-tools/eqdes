@@ -54,21 +54,7 @@ def calculate_z(corner_disp, site_class_nzs):
     Z = corner_disp * 4 * np.pi ** 2 / nzs_val[i] / 9.8
     return Z
 
-
-def get_ch_nzs1170(t, site_class_nzs, method='nith'):
-    """
-    Spectral shape factor based on Equations from NZS1170.5 Supp
-
-    Eqs.
-    Ch(0) = V0
-    Ch(T) = V0 + V1(T/0.1) at T<T1
-    Ch(T) = V2 at T<T2
-    Ch(T) = V3a * (V3b / T) ** 0.75 at T<T3
-    Ch(T) = V4 / T at T < T4
-    Ch(T) = V5 / T ** 2
-    if method == 'static':
-        Ch(T) = VS
-    """
+def _get_ch_dict():
     ch_dd = {
         "A": {
             "V0": 1.0,
@@ -141,6 +127,23 @@ def get_ch_nzs1170(t, site_class_nzs, method='nith'):
             "VS": 3.0,
         }
     }
+    return ch_dd
+
+def get_ch_nzs1170(t, site_class_nzs, method='nith'):
+    """
+    Spectral shape factor based on Equations from NZS1170.5 Supp
+
+    Eqs.
+    Ch(0) = V0
+    Ch(T) = V0 + V1(T/0.1) at T<T1
+    Ch(T) = V2 at T<T2
+    Ch(T) = V3a * (V3b / T) ** 0.75 at T<T3
+    Ch(T) = V4 / T at T < T4
+    Ch(T) = V5 / T ** 2
+    if method == 'static':
+        Ch(T) = VS
+    """
+    ch_dd = _get_ch_dict()
 
     cd = ch_dd[site_class_nzs]
     assert np.min(t) >= 0.0

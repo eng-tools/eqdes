@@ -233,6 +233,22 @@ def calc_fd_rot_via_millen_et_al_2020(k_rot_el, l_in, n_load, n_cap, psi, m_f, h
     return rot
 
 
+def calc_fd_rot_ratio_via_millen_et_al_2020(m_ratio, f_p=0.5, mval=None):
+    """
+    returns theta / (m_cap / k_initial)
+
+    :param m_ratio:
+    :param f_p:
+    :param mval:
+    :return:
+    """
+    rot = np.where(m_ratio > 1, mval, (np.log(1. / m_ratio) + f_p) / (np.log(1. / m_ratio)))
+    rot = np.where(m_ratio == 0, 0, rot) * m_ratio
+    if not hasattr(m_ratio, '__len__'):
+        return rot.item()
+    return rot
+
+
 def calc_fd_rot_via_millen_et_al_2020_w_tie_beams(k_rot_el, l_in, n_load, n_cap, psi, ms, h_eff, k_tbs=0.0):
     m_cap = calc_moment_capacity_via_millen_et_al_2020(l_in, n_load, n_cap, psi, h_eff)
     m_tb_extreme = k_tbs * 0.03  # 3% rotation
@@ -318,11 +334,11 @@ def view_calc_evd_ratio_via_deng_et_al_2014():
 def calc_mom_from_rot_salimath_2018(theta_f, fd, k_rot_el, m_cap):
     l_ip = getattr(fd, fd.ip_axis)
     l_oop = getattr(fd, fd.oop_axis)
-
+    # Eq 4.3 pg 126 of Salimath 2018 thesis
     if l_ip < l_oop:
         chi = l_oop / l_ip - 0.02  # expression for moment about long axis
     else:
-        chi = 2 * l_ip / l_oop  # expression for moment about short axis
+        chi = 2 * l_ip / l_oop - 1  # expression for moment about short axis
     beta = 1 / chi * (2 * fd.n_load / fd.n_cap + 0.6)
     mom = theta_f / (beta / k_rot_el + theta_f / m_cap)
     return mom
