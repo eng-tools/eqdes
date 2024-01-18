@@ -149,10 +149,8 @@ def test_case_study_wall_pbd_wall_w_sfsi():
 
     wb.material = sm.materials.ReinforcedConcreteMaterial()
     # dw = dbd.wall(wb, hz, design_drift=0.025)
-    dw = eqdes.models.wall_building.DesignedSFSIRCWall(wb, hz, sl, fd)
-    dw.static_dbd_values()
-    print("udw: ", dw.sl.unit_dry_weight)
-    dw.static_values()
+    dw = eqdes.models.wall_building.DispBasedRCWall(wb, hz, sl, fd)
+    dw.gen_static_values()
     dw = eqdes.dbd.design_rc_wall_w_sfsi_via_millen_et_al_2020(dw, design_drift=0.025)
     assert np.isclose(dw.delta_d, 0.282773, rtol=0.001), dw.delta_d
     assert np.isclose(dw.v_base, 354451.990, rtol=0.001), dw.v_base

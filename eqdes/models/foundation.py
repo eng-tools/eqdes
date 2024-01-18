@@ -5,6 +5,9 @@ class RaftFoundation(sm.RaftFoundation):
     k_m_0 = None
     k_h_0 = None
     n_ult = None
+    alpha = None
+    zeta = None
+    theta_pseudo_up = None
     axial_load_ratio = None
     required_inputs = [
         "width",
@@ -15,6 +18,8 @@ class RaftFoundation(sm.RaftFoundation):
         "i_ww",
         "i_ll"
     ]
+    theta_p = None
+    theta_r = None
 
 
 class PadFoundation(sm.PadFoundation):

@@ -17,10 +17,10 @@ def design_rc_wall(sw, hz, design_drift=0.025, **kwargs):
     :return: DesignedWall object
     """
 
-    dw = eqdes.models.wall_building.DesignedRCWall(sw, hz)
+    dw = eqdes.models.wall_building.DispBasedRCWall(sw, hz)  # TODO: move outside
     dw.design_drift = design_drift
     verbose = kwargs.get('verbose', dw.verbose)
-    dw.static_dbd_values()
+    dw.gen_static_values()
     # k = min(0.2 * (fu / fye - 1), 0.08)  # Eq 4.31b
     k = min(0.15 * (dw.fu / dw.fye - 1), 0.06)  # Eq 6.5a from DDBD code
     l_c = dw.max_height
@@ -64,7 +64,7 @@ def design_rc_wall(sw, hz, design_drift=0.025, **kwargs):
         dw.mu = dt.ductility(dw.delta_d, delta_y)
         dw.xi = dt.equivalent_viscous_damping(dw.mu, mtype="concrete", btype="wall")
         dw.eta = dt.reduction_factor(dw.xi)
-        dw.t_eff = dt.effective_period(dw.delta_d, dw.eta, dw.hz.corner_disp, dw.hz.corner_period)
+        dw.t_eff = dt.effective_period(dw.delta_d, dw.eta, hz.corner_disp, hz.corner_period)
 
         if verbose > 1:
             print('Delta_D: ', dw.delta_d)
@@ -87,23 +87,23 @@ def design_rc_wall(sw, hz, design_drift=0.025, **kwargs):
     return dw
 
 
-def org_design_rc_wall_w_sfsi_via_millen_et_al_2020(wb, hz, sl, fd, design_drift=0.025, mval=None, **kwargs):
-    """
-    Displacement-based design of a concrete wall.
+# def org_design_rc_wall_w_sfsi_via_millen_et_al_2020(wb, hz, sl, fd, design_drift=0.025, mval=None, **kwargs):
+#     """
+#     Displacement-based design of a concrete wall.
+#
+#     :param wb: WallBuilding object
+#     :param hz: Hazard Object
+#     :param design_drift: Design drift
+#     :param kwargs:
+#     :return: DesignedWall object
+#     """
+#     dw = eqdes.models.wall_building.DesignedSFSIRCWall(wb, hz, sl, fd)
+#     dw.design_drift = design_drift
+#     dw.static_dbd_values()
+#     dw.static_values()
+#     design_rc_wall_w_sfsi_via_millen_et_al_2020(dw, design_drift=design_drift, **kwargs)
 
-    :param wb: WallBuilding object
-    :param hz: Hazard Object
-    :param design_drift: Design drift
-    :param kwargs:
-    :return: DesignedWall object
-    """
-    dw = eqdes.models.wall_building.DesignedSFSIRCWall(wb, hz, sl, fd)
-    dw.design_drift = design_drift
-    dw.static_dbd_values()
-    dw.static_values()
-    design_rc_wall_w_sfsi_via_millen_et_al_2020(dw, design_drift=design_drift, **kwargs)
-
-def design_rc_wall_w_sfsi_via_millen_et_al_2020(wb, design_drift=0.025, mval=None, **kwargs):
+def design_rc_wall_w_sfsi_via_millen_et_al_2020(dw, design_drift=0.025, mval=None, **kwargs):
     """
     Displacement-based design of a concrete wall.
 
@@ -115,8 +115,7 @@ def design_rc_wall_w_sfsi_via_millen_et_al_2020(wb, design_drift=0.025, mval=Non
     """
     attrs = ['hz', 'fd', 'sl']
     for attr in attrs:
-        assert hasattr(wb, attr)
-    dw = wb
+        assert hasattr(dw, attr)
     dw.design_drift = design_drift
     verbose = kwargs.get('verbose', dw.verbose)
 
@@ -190,9 +189,9 @@ def design_rc_wall_w_sfsi_via_millen_et_al_2020(wb, design_drift=0.025, mval=Non
     moment_f = dw.v_base * dw.height_eff
     dw.m_base = moment_f - dw.v_base * dw.fd.height
     psi = 0.75 * np.tan(dw.sl.phi_r)
-    dw.m_f_cap = calc_moment_capacity_via_millen_et_al_2020(dw.fd.length, dw.total_weight, dw.bearing_capacity, psi,
+    dw.m_f_cap = calc_moment_capacity_via_millen_et_al_2020(dw.fd.length, dw.total_weight, dw.fd.n_ult, psi,
                                                        dw.height_eff)
-    theta_f = calc_fd_rot_via_millen_et_al_2020(dw.fd.k_m_0, dw.fd.length, dw.total_weight, dw.bearing_capacity, psi, moment_f,
+    theta_f = calc_fd_rot_via_millen_et_al_2020(dw.fd.k_m_0, dw.fd.length, dw.total_weight, dw.fd.n_ult, psi, moment_f,
                                                 dw.height_eff, mval=mval)
     if theta_f is None:
 

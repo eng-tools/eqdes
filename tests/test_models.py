@@ -26,7 +26,7 @@ def test_initialse_designed_walls():
     sl = conftest.sl_test
     fd = conftest.fd_test
 
-    dw = eqdes.models.wall_building.DesignedSFSIRCWall(wb, hz, sl, fd)
+    dw = eqdes.models.wall_building.DispBasedRCWall(wb, hz, sl, fd)
     dw.design_drift = 0.025
     assert dw.sl.unit_dry_weight == sl.unit_dry_weight
 

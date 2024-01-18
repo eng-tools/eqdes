@@ -1,6 +1,6 @@
 from sfsimodels import output as mo
 from .frame_building import FrameBuilding, DesignedRCFrame, DesignedSFSIRCFrame, AssessedRCFrame, AssessedSFSIRCFrame
-from .wall_building import WallBuilding, DesignedRCWall, DesignedSFSIRCWall #AssessRCWall
+from .wall_building import WallBuilding, Deprecated_DispBasedRCWall, DispBasedRCWall
 
 
 def push_building_to_table(bd, table_name="af-table"):
