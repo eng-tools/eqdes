@@ -181,6 +181,7 @@ def design_rc_wall_w_sfsi_via_millen_et_al_2020(wb, hz, sl, fd, design_drift=0.0
 
         raise DesignError(f'Foundation moment ({moment_f}) exceeds foundation moment capacity ({dw.m_f_cap})')
     print("theta_f: ", theta_f)
+    dw.theta_f = theta_f
 
     print("moment_f: ", moment_f, 'm_cap,f: ', dw.m_f_cap)
 

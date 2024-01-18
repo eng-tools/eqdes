@@ -216,6 +216,7 @@ def assess_rc_frame_w_sfsi_via_millen_et_al_2020(dfb, hz, sl, fd, theta_max, otm
             k_ties = 0
         l_in = getattr(pad, ip_axis)
         k_f_0_pad = gf.stiffness.calc_rotational_via_gazetas_1991(sl, pad, ip_axis=ip_axis)
+        pad.k_m_0 = k_f_0_pad
         rot_ipad = calc_fd_rot_via_millen_et_al_2020_w_tie_beams(k_f_0_pad, l_in, int_nloads, pad.n_ult, psi,
                                                                  m_foot_int, h_eff, 2 * k_ties)
         # TODO: change to cycle through all

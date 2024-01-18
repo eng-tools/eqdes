@@ -303,6 +303,13 @@ def calc_res_rot_via_deng_et_al_2014(a_ratio, peak_rot):
     return z
 
 
+def calc_sett_via_deng_et_al_2014(a_ratio, peak_rot, l_ip):
+    a_vals = [0, 3, 5.9, 12, 40]
+    c_vals = [0.4, 0.4, 0.22, 0.07, 0.07]
+    c_sett = np.interp(a_ratio, a_vals, c_vals)
+    return 4 * c_sett * l_ip * peak_rot
+
+
 def calc_evd_ratio_via_deng_et_al_2014(a_ratio, peak_rot, mok_ratio, hbrat=0.29):
     """mok_ratio: Moment over initial stiffness ratio (same as h in Deng paper)"""
     rd = calc_recentring_ratio_via_deng_et_al_2014(a_ratio)
