@@ -28,9 +28,9 @@ def test_calculate_storey_forces():
 
 
 def test_cal_higher_mode_factor():
-    assert dt.cal_higher_mode_factor(2, btype="frame") == 1.0
-    assert dt.cal_higher_mode_factor(17, btype="frame") == 0.85
-    assert dt.cal_higher_mode_factor(10, btype="frame") == 0.94
+    assert dt.calc_higher_mode_factor(2, btype="frame") == 1.0
+    assert dt.calc_higher_mode_factor(17, btype="frame") == 0.85
+    assert dt.calc_higher_mode_factor(10, btype="frame") == 0.94
 
 
 def test_bilinear_load_factor():
@@ -78,14 +78,14 @@ def test_equivalent_sdof_sfsi():
     masses = [40e3, 40e3, 40e3]
     theta_c = 0.02
     displacements = dt.displacement_profile_frame(theta_c, heights, hm_factor)
-    delta_fb, mass_eff_fb, height_eff_fb = dt.equivalent_sdof(masses, displacements, heights)
+    delta_fb, mass_eff_fb, height_eff_fb = dt.calc_equivalent_sdof(masses, displacements, heights)
     fd_height = 1.0
     fd_mass = 20.0e3
     theta_f = 0.0
     heights_w_f, masses_w_f = dt.add_foundation(heights, masses, fd_height, fd_mass)
     displacements_sfsi = dt.displacement_profile_frame(theta_c, heights_w_f, hm_factor, foundation=True,
                                                     fd_height=fd_height, theta_f=theta_f)
-    delta_sfsi, mass_eff_sfsi, height_eff_sfsi = dt.equivalent_sdof(masses_w_f, displacements_sfsi, heights_w_f)
+    delta_sfsi, mass_eff_sfsi, height_eff_sfsi = dt.calc_equivalent_sdof(masses_w_f, displacements_sfsi, heights_w_f)
     print(delta_fb, delta_sfsi)
     assert isclose(delta_fb, delta_sfsi)
 

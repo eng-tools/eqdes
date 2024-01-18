@@ -27,7 +27,7 @@ def displacement_profile_frame(theta_c, heights, hm_factor, foundation=False,
     return displacements
 
 
-def cal_higher_mode_factor(n_storeys, btype="frame"):
+def calc_higher_mode_factor(n_storeys, btype="frame"):
     """
     Calculates the higher mode factor according to DDBD12 CL.
     :param n_storeys:
@@ -59,7 +59,7 @@ def cal_displaced_shape(theta_c, heights, btype="frame"):
         return theta_c * heights * (4 * max_height - heights) / (4 * max_height - heights[0])
 
 
-def equivalent_sdof(masses, displacements, heights):
+def calc_equivalent_sdof(masses, displacements, heights):
     mass_x_disp = masses * displacements
     mass_x_disp2 = masses * displacements ** 2
     mass_x_disp_x_height = masses * displacements * heights
@@ -86,8 +86,7 @@ def equivalent_sdof_as_series(masses, displacements, heights):
 def yield_displacement(theta_y, height_eff):  # TODO: check where this comes from?
     return theta_y * height_eff
 
-
-def yield_displacement_wall(phi_y, heights, max_height):
+def yield_displacements_wall(phi_y, heights, max_height):
     """
     The yield displacement of a concrete wall. Eq. 6 (Sullivan et al. 2010).
     :param phi_y: yield curvature
@@ -96,7 +95,6 @@ def yield_displacement_wall(phi_y, heights, max_height):
     """
 
     return phi_y * heights ** 2 / 2 + phi_y * heights ** 3 / max_height
-
 
 def conc_frame_yield_drift(fye, youngs_steel, av_bay_length, av_beam_depth):
     """

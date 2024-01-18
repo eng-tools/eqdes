@@ -34,7 +34,7 @@ def design_rc_frame(fb, hz, design_drift=0.02, **kwargs):
         mu_reduction_factor = 1.0 - float(i) / 100
         theta_c = df.design_drift * mu_reduction_factor
         displacements = dt.displacement_profile_frame(theta_c, df.heights, df.hm_factor)
-        df.delta_d, df.mass_eff, df.height_eff = dt.equivalent_sdof(df.storey_mass_p_frame, displacements, df.heights)
+        df.delta_d, df.mass_eff, df.height_eff = dt.calc_equivalent_sdof(df.storey_mass_p_frame, displacements, df.heights)
         df.theta_y = dt.conc_frame_yield_drift(df.fye, df.concrete.e_mod_steel, df.av_bay, df.av_beam)
         delta_y = dt.yield_displacement(df.theta_y, df.height_eff)
         df.mu = dt.ductility(df.delta_d, delta_y)
@@ -91,7 +91,7 @@ def design_rc_frame_w_sfsi_via_millen_et_al_2020(fb, hz, sl, fd, design_drift=0.
 
             displacements = dt.displacement_profile_frame(theta_c, heights, df.hm_factor, foundation=True,
                                                     fd_height=df.fd.height, theta_f=temp_found_rot)
-            df.delta_d, df.mass_eff, df.height_eff = dt.equivalent_sdof(df.storey_mass_p_frame, displacements, heights)
+            df.delta_d, df.mass_eff, df.height_eff = dt.calc_equivalent_sdof(df.storey_mass_p_frame, displacements, heights)
             df.theta_y = dt.conc_frame_yield_drift(df.fye, df.concrete.e_mod_steel, df.av_bay, df.av_beam)
             delta_y = dt.yield_displacement(df.theta_y, df.height_eff - df.fd.height)
 
@@ -248,7 +248,7 @@ def design_rc_frame_w_sfsi_via_millen_et_al_2018(fb, hz, sl, fd, design_drift=0.
             theta_c = df.design_drift * mu_reduction_factor
             displacements = dt.displacement_profile_frame(theta_c, heights, df.hm_factor, foundation=True,
                                                     fd_height=df.fd.height, theta_f=df.theta_f)
-            df.delta_d, df.mass_eff, df.height_eff = dt.equivalent_sdof(df.storey_mass_p_frame, displacements, heights)
+            df.delta_d, df.mass_eff, df.height_eff = dt.calc_equivalent_sdof(df.storey_mass_p_frame, displacements, heights)
             df.theta_y = dt.conc_frame_yield_drift(df.fye, df.concrete.e_mod_steel, df.av_bay, df.av_beam)
             delta_y = dt.yield_displacement(df.theta_y, df.height_eff - df.fd.height)
 

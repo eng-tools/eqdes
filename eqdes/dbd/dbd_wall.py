@@ -6,7 +6,7 @@ from eqdes.extensions.exceptions import DesignError
 from eqdes.nonlinear_foundation import calc_fd_rot_via_millen_et_al_2020, calc_moment_capacity_via_millen_et_al_2020
 
 
-def design_rc_wall(sw, hz, design_drift=0.025, **kwargs):
+def design_rc_wall(dw, hz, design_drift=0.025, **kwargs):
     """
     Displacement-based design of a reinforced concrete wall.
 
@@ -17,7 +17,6 @@ def design_rc_wall(sw, hz, design_drift=0.025, **kwargs):
     :return: DesignedWall object
     """
 
-    dw = eqdes.models.wall_building.DispBasedRCWall(sw, hz)  # TODO: move outside
     dw.design_drift = design_drift
     verbose = kwargs.get('verbose', dw.verbose)
     dw.gen_static_values()
@@ -29,7 +28,7 @@ def design_rc_wall(sw, hz, design_drift=0.025, **kwargs):
     l_p = max(k * l_c + l_sp + 0.1 * dw.wall_depth, 2 * l_sp)
     phi_y = dt.yield_curvature(dw.epsilon_y, dw.wall_depth, btype="wall")
     dw.phi_y = phi_y
-    delta_y = dt.yield_displacement_wall(phi_y, dw.heights, dw.max_height)
+    delta_y = dt.yield_displacements_wall(phi_y, dw.heights, dw.max_height)
     phi_p = dw.phi_material - phi_y
     # determine whether code limit or material strain governs
     theta_ss_code = design_drift
@@ -59,7 +58,7 @@ def design_rc_wall(sw, hz, design_drift=0.025, **kwargs):
 
         displacements = delta_ls * dw.hm_factor
 
-        dw.delta_d, dw.mass_eff, dw.height_eff = dt.equivalent_sdof(dw.storey_mass, displacements, dw.heights)
+        dw.delta_d, dw.mass_eff, dw.height_eff = dt.calc_equivalent_sdof(dw.storey_mass, displacements, dw.heights)
         delta_y = dt.yield_displacement_wall(phi_y, dw.height_eff, dw.max_height)
         dw.mu = dt.ductility(dw.delta_d, delta_y)
         dw.xi = dt.equivalent_viscous_damping(dw.mu, mtype="concrete", btype="wall")
@@ -103,7 +102,7 @@ def design_rc_wall(sw, hz, design_drift=0.025, **kwargs):
 #     dw.static_values()
 #     design_rc_wall_w_sfsi_via_millen_et_al_2020(dw, design_drift=design_drift, **kwargs)
 
-def design_rc_wall_w_sfsi_via_millen_et_al_2020(dw, design_drift=0.025, mval=None, **kwargs):
+def design_rc_wall_w_sfsi_via_millen_et_al_2020(dw, hz, design_drift=0.025, mval=None, **kwargs):
     """
     Displacement-based design of a concrete wall.
 
@@ -113,7 +112,7 @@ def design_rc_wall_w_sfsi_via_millen_et_al_2020(dw, design_drift=0.025, mval=Non
     :param kwargs:
     :return: DesignedWall object
     """
-    attrs = ['hz', 'fd', 'sl']
+    attrs = ['fd', 'sl']
     for attr in attrs:
         assert hasattr(dw, attr)
     dw.design_drift = design_drift
@@ -131,7 +130,7 @@ def design_rc_wall_w_sfsi_via_millen_et_al_2020(dw, design_drift=0.025, mval=Non
     l_p = max(k * l_c + l_sp + 0.1 * dw.wall_depth, 2 * l_sp)
     phi_y = dt.yield_curvature(dw.epsilon_y, dw.wall_depth, btype="wall")
     dw.phi_y = phi_y
-    delta_y = dt.yield_displacement_wall(phi_y, heights, dw.max_height)
+    delta_y = dt.yield_displacements_wall(phi_y, heights, dw.max_height)
     phi_p = dw.phi_material - phi_y
     # determine whether code limit or material strain governs
     theta_ss_code = design_drift
@@ -162,12 +161,12 @@ def design_rc_wall_w_sfsi_via_millen_et_al_2020(dw, design_drift=0.025, mval=Non
 
         displacements = delta_ls * dw.hm_factor
 
-        dw.delta_d, dw.mass_eff, dw.height_eff = dt.equivalent_sdof(storey_mass_p_wall, displacements, heights)
+        dw.delta_d, dw.mass_eff, dw.height_eff = dt.calc_equivalent_sdof(storey_mass_p_wall, displacements, heights)
         delta_y = dt.yield_displacement_wall(phi_y, dw.height_eff, dw.max_height)
         dw.mu = dt.ductility(dw.delta_d, delta_y)
         dw.xi = dt.equivalent_viscous_damping(dw.mu, mtype="concrete", btype="wall")
         dw.eta = dt.reduction_factor(dw.xi)
-        dw.t_eff = dt.effective_period(dw.delta_d, dw.eta, dw.hz.corner_disp, dw.hz.corner_period)
+        dw.t_eff = dt.effective_period(dw.delta_d, dw.eta, hz.corner_disp, hz.corner_period)
 
         if verbose > 1:
             print('Delta_D: ', dw.delta_d)

@@ -32,7 +32,7 @@ def assess_rc_frame(fb, hz, theta_max, otm_max, **kwargs):
         mu_reduction_factor = 1.0 - float(i) / ductility_reduction_factors
         theta_c = theta_max * mu_reduction_factor
         displacements = dt.displacement_profile_frame(theta_c, af.heights, af.hm_factor)
-        af.delta_max, af.mass_eff, af.height_eff = dt.equivalent_sdof(af.storey_mass_p_frame, displacements, af.heights)
+        af.delta_max, af.mass_eff, af.height_eff = dt.calc_equivalent_sdof(af.storey_mass_p_frame, displacements, af.heights)
         af.theta_y = dt.conc_frame_yield_drift(af.fye, af.concrete.e_mod_steel, af.av_bay, af.av_beam)
         af.delta_y = dt.yield_displacement(af.theta_y, af.height_eff)
         af.mu = dt.ductility(af.delta_max, af.delta_y)
@@ -116,7 +116,7 @@ def assess_rc_frame_w_sfsi_via_millen_et_al_2020(dfb, hz, sl, fd, theta_max, otm
         theta_c = theta_max * mu_reduction_factor
         displacements = dt.displacement_profile_frame(theta_c, heights, af.hm_factor, foundation=True,
                                                     fd_height=af.fd.height, theta_f=af.theta_f)
-        af.delta_max, af.mass_eff, af.height_eff = dt.equivalent_sdof(af.storey_mass_p_frame, displacements, heights)
+        af.delta_max, af.mass_eff, af.height_eff = dt.calc_equivalent_sdof(af.storey_mass_p_frame, displacements, heights)
 
         af.delta_y = dt.yield_displacement(af.theta_y, af.height_eff - af.fd.height)
         approx_delta_f = af.theta_f * af.height_eff
@@ -379,7 +379,7 @@ def push_over_rc_frame_w_sfsi_via_millen_et_al_2021(dfb, sl, fd, theta_max, mcbs
     mom_ratio = 0.6
 
     displacements = dt.displacement_profile_frame(theta_max, af.heights, af.hm_factor)
-    delta_max_fb, mass_eff_fb, height_eff_fb = dt.equivalent_sdof(af.storey_mass_p_frame[1:], displacements, af.heights)
+    delta_max_fb, mass_eff_fb, height_eff_fb = dt.calc_equivalent_sdof(af.storey_mass_p_frame[1:], displacements, af.heights)
     delta_y_fb = dt.yield_displacement(af.theta_y, height_eff_fb)
     af.max_mu = delta_max_fb / delta_y_fb
     theta_p = 0.8 * af.theta_y
@@ -407,7 +407,7 @@ def push_over_rc_frame_w_sfsi_via_millen_et_al_2021(dfb, sl, fd, theta_max, mcbs
             # Reduce column base moments
         displacements = dt.displacement_profile_frame(theta_c, heights, af.hm_factor, foundation=True,
                                                     fd_height=af.fd.height, theta_f=af.theta_f)
-        af.delta_max, af.mass_eff, af.height_eff = dt.equivalent_sdof(af.storey_mass_p_frame, displacements, heights)
+        af.delta_max, af.mass_eff, af.height_eff = dt.calc_equivalent_sdof(af.storey_mass_p_frame, displacements, heights)
 
         af.delta_y = dt.yield_displacement(af.theta_y, af.height_eff - af.fd.height)
         approx_delta_f = af.theta_f * af.height_eff

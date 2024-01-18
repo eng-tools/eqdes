@@ -6,7 +6,9 @@ Created on Feb 21, 2014
 import numpy as np
 
 
-def getTeff(Z_Haz, R_Haz, N_Haz, Soil_type, Disp_eff, **kwargs):
+
+
+def getTeff(z_haz, r_haz, n_haz, site_class, Disp_eff, **kwargs):
     '''
     Returns the effective period of the structure
      using the values from NZS1170.5
@@ -14,18 +16,18 @@ def getTeff(Z_Haz, R_Haz, N_Haz, Soil_type, Disp_eff, **kwargs):
     :param Disp_eff:
     '''
     gravity = kwargs.get('gravity', 9.8)
-    if Soil_type == 'C':
+    if site_class == 'C':
         T_C = 3.0
-        D_C = (3.96 * Z_Haz * R_Haz *
-               N_Haz / (2 * np.pi) ** 2 * gravity)
-    elif Soil_type == 'D':
+        D_C = (3.96 * z_haz * r_haz *
+               n_haz / (2 * np.pi) ** 2 * gravity)
+    elif site_class == 'D':
         T_C = 3.0
-        D_C = (6.42 * Z_Haz * R_Haz *
-               N_Haz / (2 * np.pi) ** 2 * gravity)
-    elif Soil_type == 'E':
+        D_C = (6.42 * z_haz * r_haz *
+               n_haz / (2 * np.pi) ** 2 * gravity)
+    elif site_class == 'E':
         T_C = 3.0
-        D_C = (9.96 * Z_Haz * R_Haz * \
-               N_Haz / (2 * np.pi) ** 2 * gravity)
+        D_C = (9.96 * z_haz * r_haz * \
+               n_haz / (2 * np.pi) ** 2 * gravity)
 
     if Disp_eff > D_C:
         'Print displacement ductility not achieveable'

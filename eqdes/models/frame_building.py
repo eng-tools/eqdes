@@ -67,7 +67,7 @@ class DesignedRCFrame(FrameBuilding):
         self.fye = 1.1 * self.concrete.fy
         self.storey_mass_p_frame = self.storey_masses / self.n_seismic_frames
         self.storey_forces = np.zeros((1, len(self.storey_masses)))
-        self.hm_factor = dt.cal_higher_mode_factor(self.n_storeys, btype="frame")
+        self.hm_factor = dt.calc_higher_mode_factor(self.n_storeys, btype="frame")
         self._extra_class_variables = ["method"]
         self.method = None
         self.inputs = [item for item in self.inputs]
@@ -111,7 +111,7 @@ class AssessedRCFrame(FrameBuilding):
         self.fye = 1.1 * self.concrete.fy
         self.storey_mass_p_frame = self.storey_masses / self.n_seismic_frames
         self.storey_forces = np.zeros((1, len(self.storey_masses)))
-        self.hm_factor = dt.cal_higher_mode_factor(self.n_storeys, btype="frame")
+        self.hm_factor = dt.calc_higher_mode_factor(self.n_storeys, btype="frame")
         self._extra_class_variables = ["method"]
         self.method = None
         self.inputs += self._extra_class_variables
