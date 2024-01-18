@@ -3,6 +3,8 @@ import numpy as np
 import sfsimodels as sm
 from sfsimodels import output as mo
 
+import eqdes.models.frame_building
+import eqdes.models.hazard
 from eqdes import models as em
 from eqdes import dbd_tools as dt
 from eqdes import nonlinear_foundation as nf
@@ -24,7 +26,7 @@ def design_rc_frame(fb, hz, design_drift=0.02, **kwargs):
     :return:
     """
 
-    df = em.DesignedRCFrame(fb, hz)
+    df = eqdes.models.frame_building.DesignedRCFrame(fb, hz)
     df.design_drift = design_drift
     verbose = kwargs.get('verbose', df.verbose)
 
@@ -64,7 +66,7 @@ def design_rc_frame(fb, hz, design_drift=0.02, **kwargs):
 def design_rc_frame_w_sfsi_via_millen_et_al_2020(fb, hz, sl, fd, design_drift=0.02, found_rot=0.00001,
                                          found_rot_tol=0.02, found_rot_iterations=20, **kwargs):
     import geofound as gf
-    df = em.DesignedSFSIRCFrame(fb, hz, sl, fd)
+    df = eqdes.models.frame_building.DesignedSFSIRCFrame(fb, hz, sl, fd)
     df.design_drift = design_drift
     verbose = kwargs.get('verbose', df.verbose)
     df.static_values()
@@ -136,14 +138,14 @@ def design_rc_frame_w_sfsi_via_millen_et_al_2020(fb, hz, sl, fd, design_drift=0.
                 v_base_p_delta = dt.p_delta_base_shear(df.mass_eff, df.delta_d, df.height_eff, v_base_dynamic)
                 df.v_base = v_base_dynamic + v_base_p_delta
                 prev_delta_fshear = temp_delta_fshear
-                temp_delta_fshear = df.v_base / (0.5 * df.k_f0_shear)
+                temp_delta_fshear = df.v_base / (0.5 * df.fd.k_h_0)
                 df.storey_forces = dt.calculate_storey_forces(df.storey_mass_p_frame, displacements, df.v_base, btype='frame')
-                n_ult = df.fd_bearing_capacity
+                n_ult = df.fd.n_ult
                 moment_f = df.v_base * df.height_eff
                 hf = df.height_eff
                 prev_found_rot = temp_found_rot
 
-                temp_found_rot = calc_fd_rot_via_millen_et_al_2020(df.k_f_0, df.fd.length, df.total_weight, n_ult,
+                temp_found_rot = calc_fd_rot_via_millen_et_al_2020(df.fd.k_m_0, df.fd.length, df.total_weight, n_ult,
                                                                    psi, moment_f, df.height_eff)
                 if abs(prev_delta_fshear - temp_delta_fshear) / df.delta_d < 0.01 and abs(prev_found_rot - temp_found_rot) * hf / df.delta_d < 0.01:
                     fd_compatible = True
@@ -227,7 +229,7 @@ def design_rc_frame_w_sfsi_via_millen_et_al_2020(fb, hz, sl, fd, design_drift=0.
 
 def design_rc_frame_w_sfsi_via_millen_et_al_2018(fb, hz, sl, fd, design_drift=0.02, found_rot=0.00001, found_rot_tol=0.02, found_rot_iterations=20, **kwargs):
 
-    df = em.DesignedSFSIRCFrame(fb, hz, sl, fd)
+    df = eqdes.models.frame_building.DesignedSFSIRCFrame(fb, hz, sl, fd)
     df.design_drift = design_drift
     df.theta_f = found_rot
     verbose = kwargs.get('verbose', df.verbose)
@@ -298,11 +300,11 @@ def design_rc_frame_w_sfsi_via_millen_et_al_2018(fb, hz, sl, fd, design_drift=0.
         df.storey_forces = dt.calculate_storey_forces(df.storey_mass_p_frame, displacements, df.v_base, btype='frame')
 
         stiffness_ratio = nf.calc_foundation_rotational_stiffness_ratio_millen_et_al_2018(cor_norm_rot)
-        k_f_eff = df.k_f_0 * stiffness_ratio
+        k_f_eff = df.fd.k_m_0 * stiffness_ratio
         temp_found_rot = found_rot
         moment_f = df.v_base * df.height_eff
         found_rot = moment_f / k_f_eff
-        df.delta_fshear = df.v_base / (0.5 * df.k_f0_shear)
+        df.delta_fshear = df.v_base / (0.5 * df.fd.k_h_0)
 
         iteration_diff = (abs(temp_found_rot - found_rot) / found_rot)
         if iteration_diff < found_rot_tol:
@@ -324,7 +326,7 @@ def design_rc_frame_w_sfsi_via_millen_et_al_2018(fb, hz, sl, fd, design_drift=0.
 
 def run_frame_fixed():
     from tests import models_for_testing as ml
-    hz = em.Hazard()
+    hz = eqdes.models.hazard.Hazard()
     ml.load_hazard_test_data(hz)
     fb = ml.initialise_frame_building_test_data()
     designed_frame = design_rc_frame(fb, hz)
@@ -341,7 +343,7 @@ def run_frame_fixed():
 def run_design_rc_frame_w_sfsi_via_millen_et_al_2018():
     from tests import models_for_testing as ml
     fb = ml.initialise_frame_building_test_data()
-    hz = em.Hazard()
+    hz = eqdes.models.hazard.Hazard()
     sp = sm.Soil()
     fd = sm.RaftFoundation()
     ml.load_hazard_test_data(hz)

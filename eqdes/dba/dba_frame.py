@@ -1,20 +1,12 @@
-import numpy as np
-
-from sfsimodels import loader as ml
-from sfsimodels import output as mo
-
-from eqdes import models as em
-import sfsimodels as sm
-from eqdes import dbd_tools as dt
-from eqdes import nonlinear_foundation as nf
-from eqdes import moment_equilibrium
 import geofound as gf
-from eqdes import fns
+import numpy as np
+import sfsimodels as sm
 
+import eqdes.models.frame_building
+from eqdes import models as em, moment_equilibrium, dbd_tools as dt, nonlinear_foundation as nf, fns
 from eqdes.extensions.exceptions import DesignError
-
-from eqdes.nonlinear_foundation import calc_moment_capacity_via_millen_et_al_2020, calc_fd_rot_via_millen_et_al_2020, \
-    calc_fd_rot_via_millen_et_al_2020_w_tie_beams
+from eqdes.nonlinear_foundation import calc_fd_rot_via_millen_et_al_2020_w_tie_beams, \
+    calc_moment_capacity_via_millen_et_al_2020, calc_fd_rot_via_millen_et_al_2020
 
 
 def assess_rc_frame(fb, hz, theta_max, otm_max, **kwargs):
@@ -29,7 +21,7 @@ def assess_rc_frame(fb, hz, theta_max, otm_max, **kwargs):
     :return:
     """
 
-    af = em.AssessedRCFrame(fb, hz)
+    af = eqdes.models.frame_building.AssessedRCFrame(fb, hz)
     af.otm_max = otm_max
     af.theta_max = theta_max
     verbose = kwargs.get('verbose', af.verbose)
@@ -92,7 +84,7 @@ def assess_rc_frame_w_sfsi_via_millen_et_al_2020(dfb, hz, sl, fd, theta_max, otm
     :return:
     """
     horz2vert_mass = kwargs.get('horz2vert_mass', 1.0)
-    af = em.AssessedSFSIRCFrame(dfb, hz, sl, fd)
+    af = eqdes.models.frame_building.AssessedSFSIRCFrame(dfb, hz, sl, fd)
 
     af.theta_max = theta_max
 
@@ -359,7 +351,7 @@ def push_over_rc_frame_w_sfsi_via_millen_et_al_2021(dfb, sl, fd, theta_max, mcbs
     # NOTE: The global rotation is only considered based on A*d^2, and the local rotation is dealt with separately.
 
     horz2vert_mass = kwargs.get('horz2vert_mass', 1.0)
-    af = em.AssessedSFSIRCFrame(dfb, sm.SeismicHazard(), sl, fd)
+    af = eqdes.models.frame_building.AssessedSFSIRCFrame(dfb, sm.SeismicHazard(), sl, fd)
 
     af.theta_max = theta_max
 

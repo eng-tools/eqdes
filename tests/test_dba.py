@@ -1,6 +1,9 @@
 
 import numpy as np
 
+import eqdes.models.foundation
+import eqdes.models.hazard
+import eqdes.models.soil
 from tests import models_for_testing as ml
 from eqdes import dbd
 from eqdes import dba
@@ -15,7 +18,7 @@ from tests.checking_tools import isclose
 
 def test_ddbd_frame_fixed_small():
 
-    hz = dm.Hazard()
+    hz = eqdes.models.hazard.Hazard()
     ml.load_hazard_test_data(hz)
     fb = ml.initialise_frame_building_test_data()
     frame_dbd = dbd.design_rc_frame(fb, hz)
@@ -49,9 +52,9 @@ def test_ddbd_frame_consistent():
     """
 
     fb = ml.initialise_frame_building_test_data()
-    hz = dm.Hazard()
-    sl = dm.Soil()
-    fd = dm.RaftFoundation()
+    hz = eqdes.models.hazard.Hazard()
+    sl = eqdes.models.soil.Soil()
+    fd = eqdes.models.foundation.RaftFoundation()
     ml.load_hazard_test_data(hz)
     ml.load_soil_test_data(sl)
     ml.load_raft_foundation_test_data(fd)

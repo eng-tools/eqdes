@@ -1,6 +1,12 @@
 
 import numpy as np
 import sfsimodels as sm
+
+import eqdes.models.foundation
+import eqdes.models.frame_building
+import eqdes.models.hazard
+import eqdes.models.material
+import eqdes.models.soil
 from eqdes import models as em
 
 
@@ -21,7 +27,7 @@ def load_hazard_test_data(hz):
 
 
 def initialise_hazard_test_data():
-    hz = em.Hazard()
+    hz = eqdes.models.hazard.Hazard()
     load_hazard_test_data(hz)
     return hz
 
@@ -35,8 +41,8 @@ def initialise_frame_building_test_data():
     """
     number_of_storeys = 6
     number_of_bays = 3
-    fb = em.FrameBuilding(n_storeys=number_of_storeys, n_bays=number_of_bays)
-    fb.material = em.ReinforcedConcrete()
+    fb = eqdes.models.frame_building.FrameBuilding(n_storeys=number_of_storeys, n_bays=number_of_bays)
+    fb.material = eqdes.models.material.ReinforcedConcrete()
     interstorey_height = 3.4  # m
     masses = 40.0e3  # kg
 
@@ -61,7 +67,7 @@ def initialise_single_wall_test_data():
     """
     number_of_storeys = 6
     sw = sm.SingleWall(number_of_storeys)
-    sw.material = em.ReinforcedConcrete()
+    sw.material = eqdes.models.material.ReinforcedConcrete()
 
     interstorey_height = 3.4  # m
     masses = 10.0e3  # kg
@@ -89,7 +95,7 @@ def load_soil_test_data(sl):
 
 
 def initialise_soil_test_data():
-    sl = em.Soil()
+    sl = eqdes.models.soil.Soil()
     load_soil_test_data(sl)
     return sl
 
@@ -110,6 +116,6 @@ def load_raft_foundation_test_data(fd):
 
 
 def initialise_foundation_test_data():
-    fd = em.RaftFoundation()
+    fd = eqdes.models.foundation.RaftFoundation()
     load_raft_foundation_test_data(fd)
     return fd

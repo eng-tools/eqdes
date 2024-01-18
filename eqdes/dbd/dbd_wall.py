@@ -1,5 +1,6 @@
 import numpy as np
 
+import eqdes.models.wall_building
 from eqdes import models as em, dbd_tools as dt
 from eqdes.extensions.exceptions import DesignError
 from eqdes.nonlinear_foundation import calc_fd_rot_via_millen_et_al_2020, calc_moment_capacity_via_millen_et_al_2020
@@ -16,7 +17,7 @@ def design_rc_wall(sw, hz, design_drift=0.025, **kwargs):
     :return: DesignedWall object
     """
 
-    dw = em.DesignedRCWall(sw, hz)
+    dw = eqdes.models.wall_building.DesignedRCWall(sw, hz)
     dw.design_drift = design_drift
     verbose = kwargs.get('verbose', dw.verbose)
     dw.static_dbd_values()
@@ -86,7 +87,7 @@ def design_rc_wall(sw, hz, design_drift=0.025, **kwargs):
     return dw
 
 
-def design_rc_wall_w_sfsi_via_millen_et_al_2020(wb, hz, sl, fd, design_drift=0.025, mval=None, **kwargs):
+def org_design_rc_wall_w_sfsi_via_millen_et_al_2020(wb, hz, sl, fd, design_drift=0.025, mval=None, **kwargs):
     """
     Displacement-based design of a concrete wall.
 
@@ -96,12 +97,28 @@ def design_rc_wall_w_sfsi_via_millen_et_al_2020(wb, hz, sl, fd, design_drift=0.0
     :param kwargs:
     :return: DesignedWall object
     """
-    dw = em.DesignedSFSIRCWall(wb, hz, sl, fd)
+    dw = eqdes.models.wall_building.DesignedSFSIRCWall(wb, hz, sl, fd)
+    dw.design_drift = design_drift
+    dw.static_dbd_values()
+    dw.static_values()
+    design_rc_wall_w_sfsi_via_millen_et_al_2020(dw, design_drift=design_drift, **kwargs)
+
+def design_rc_wall_w_sfsi_via_millen_et_al_2020(wb, design_drift=0.025, mval=None, **kwargs):
+    """
+    Displacement-based design of a concrete wall.
+
+    :param wb: DBDWallBuilding object
+    :param hz: Hazard Object
+    :param design_drift: Design drift
+    :param kwargs:
+    :return: DesignedWall object
+    """
+    attrs = ['hz', 'fd', 'sl']
+    for attr in attrs:
+        assert hasattr(wb, attr)
+    dw = wb
     dw.design_drift = design_drift
     verbose = kwargs.get('verbose', dw.verbose)
-    dw.static_dbd_values()
-    print("udw: ", dw.sl.unit_dry_weight)
-    dw.static_values()
 
     # add foundation to heights and masses
     heights, storey_masses = dt.add_foundation(dw.heights, dw.storey_masses, dw.fd.height, dw.fd.mass)
@@ -171,11 +188,11 @@ def design_rc_wall_w_sfsi_via_millen_et_al_2020(wb, hz, sl, fd, design_drift=0.0
     k_eff = dt.effective_stiffness(dw.mass_eff, dw.t_eff)
     dw.v_base = dt.design_base_shear(k_eff, dw.delta_d)
     moment_f = dw.v_base * dw.height_eff
-    dw.m_base = moment_f - dw.v_base * fd.height
+    dw.m_base = moment_f - dw.v_base * dw.fd.height
     psi = 0.75 * np.tan(dw.sl.phi_r)
     dw.m_f_cap = calc_moment_capacity_via_millen_et_al_2020(dw.fd.length, dw.total_weight, dw.bearing_capacity, psi,
                                                        dw.height_eff)
-    theta_f = calc_fd_rot_via_millen_et_al_2020(dw.k_f_0, dw.fd.length, dw.total_weight, dw.bearing_capacity, psi, moment_f,
+    theta_f = calc_fd_rot_via_millen_et_al_2020(dw.fd.k_m_0, dw.fd.length, dw.total_weight, dw.bearing_capacity, psi, moment_f,
                                                 dw.height_eff, mval=mval)
     if theta_f is None:
 

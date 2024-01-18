@@ -1,26 +1,11 @@
+import geofound
 import numpy as np
-
 import sfsimodels as sm
 from sfsimodels import output as mo
-import geofound
-from eqdes import nonlinear_foundation as nf
-from eqdes import dbd_tools as dt
+
+from eqdes import dbd_tools as dt, nonlinear_foundation as nf
 from eqdes.extensions.exceptions import DesignError
-
-
-class Soil(sm.Soil):
-    required_inputs = ["g_mod",
-                      "phi",
-                      "unit_weight"
-                      ]
-
-
-class Hazard(sm.SeismicHazard):
-    required_inputs = ["corner_disp",
-                      "corner_period",
-                      "z_factor",
-                      "r_factor"
-                      ]
+from eqdes.models.hazard import Hazard
 
 
 class FrameBuilding(sm.FrameBuilding):
@@ -50,58 +35,6 @@ class FrameBuilding(sm.FrameBuilding):
                                    getattr(beams[ns][nb].sections[-1], f'mom_cap_{signs[1]}')])
 
         return np.array(m_face)
-
-
-def to_table(obj, table_name="fb-table"):
-    para = mo.output_to_table(obj, olist="all")
-    para = mo.add_table_ends(para, 'latex', table_name, table_name)
-    return para
-
-
-class WallBuilding(sm.WallBuilding):
-    required_inputs = [
-        'floor_length',
-        'floor_width',
-        'interstorey_heights',
-        'n_storeys',
-        "n_walls",
-        "wall_depth"
-    ]
-
-
-class ReinforcedConcrete(sm.materials.ReinforcedConcreteMaterial):
-    required_inputs = [
-            'fy',
-            'e_mod_steel'
-    ]
-
-
-class RaftFoundation(sm.RaftFoundation):
-    required_inputs = [
-        "width",
-        "length",
-        "depth",
-        "height",
-        "density",
-        "i_ww",
-        "i_ll"
-    ]
-
-
-class PadFoundation(sm.PadFoundation):
-    required_inputs = [
-        "width",
-        "length",
-        "depth",
-        "height",
-        "density",
-        "i_ww",
-        "i_ll",
-        "n_pads_l",
-        "n_pads_w",
-        "pad_length",
-        "pad_width",
-    ]
 
 
 class DesignedRCFrame(FrameBuilding):
@@ -140,51 +73,6 @@ class DesignedRCFrame(FrameBuilding):
         self.inputs = [item for item in self.inputs]
         self.inputs += self._extra_class_variables
         self.beam_group_size = 2
-
-
-class DesignedRCWall(sm.SingleWall):
-    method = "standard"
-    preferred_bar_diameter = 0.032
-
-    hz = Hazard()
-
-    # outputs
-    phi_material = 0.0
-    epsilon_y = 0.0
-    fu = 0.0
-    design_drift = 0.0
-    delta_d = 0.0
-    mass_eff = 0.0
-    height_eff = 0.0
-    theta_y = 0.0
-    mu = 0.0
-    xi = 0.0
-    eta = 0.0
-    t_eff = 0.0
-    v_base = 0.0
-    storey_forces = 0.0
-
-    def __init__(self, sw, hz, verbose=0):
-        super(DesignedRCWall, self).__init__(sw.n_storeys)  # run parent class initialiser function
-        self.__dict__.update(sw.__dict__)
-        self.hz.__dict__.update(hz.__dict__)
-        self.verbose = verbose
-        assert sw.material.type == 'rc_material'
-        self.concrete = sw.material
-        self.fye = 1.1 * self.concrete.fy
-        self.storey_mass = self.storey_masses
-        self.storey_forces = np.zeros((1, len(self.storey_masses)))
-        self.hm_factor = dt.cal_higher_mode_factor(self.n_storeys, btype="wall")
-        self._extra_class_variables = ["method"]
-        self.method = None
-        self.inputs += self._extra_class_variables
-
-    def static_dbd_values(self):
-        # Material strain limits check
-        self.phi_material = 0.072 / self.wall_depth  # Eq 6.10b
-        self.fye = 1.1 * self.concrete.fy
-        self.epsilon_y = self.fye / self.concrete.e_mod_steel
-        self.fu = 1.40 * self.fye  # Assumed, see pg 141
 
 
 class AssessedRCFrame(FrameBuilding):
@@ -243,8 +131,8 @@ class DesignedSFSIRCFrame(DesignedRCFrame):
         self.sl.__dict__.update(sl.__dict__)
         # self.fd.__dict__.update(fd.__dict__)
         self.fd = fd.deepcopy()
-        self.k_f0_shear = geofound.stiffness.calc_shear_via_gazetas_1991(self.sl, self.fd, ip_axis=ip_axis)
-        self.k_f_0 = geofound.stiffness.calc_rotational_via_gazetas_1991(self.sl, self.fd, ip_axis=ip_axis)
+        self.fd.k_h_0 = geofound.stiffness.calc_shear_via_gazetas_1991(self.sl, self.fd, ip_axis=ip_axis)
+        self.fd.k_m_0 = geofound.stiffness.calc_rotational_via_gazetas_1991(self.sl, self.fd, ip_axis=ip_axis)
         if self.fd.ftype == "raft":
             self.alpha = 4.0
         else:
@@ -266,67 +154,10 @@ class DesignedSFSIRCFrame(DesignedRCFrame):
         bearing_capacity = nf.bearing_capacity(self.fd.area, self.soil_q)
         weight_per_frame = self.horz2vert_mass * sum(self.storey_masses) / (self.n_seismic_frames + self.n_gravity_frames) * self.g
         self.axial_load_ratio = bearing_capacity / self.total_weight
-        self.fd_bearing_capacity = bearing_capacity
+        self.fd.n_ult = bearing_capacity
 
-        self.theta_pseudo_up = nf.calculate_pseudo_uplift_angle(self.total_weight, self.fd.width, self.k_f_0,
+        self.theta_pseudo_up = nf.calculate_pseudo_uplift_angle(self.total_weight, self.fd.width, self.fd.k_m_0,
                                                                 self.axial_load_ratio, self.alpha, self.zeta)
-
-
-def designed_frame_table(fb, table_name="df-table"):
-    para = mo.output_to_table(fb, olist="all")
-    para += mo.output_to_table(fb.fd)
-    para += mo.output_to_table(fb.sl)
-    para += mo.output_to_table(fb.hz)
-    para = mo.add_table_ends(para, 'latex', table_name, table_name)
-    return para
-
-#
-# class Soil(object):
-#     pass
-
-
-class DesignedSFSIRCWall(DesignedRCWall):
-
-    sl = sm.Soil()
-    fd = sm.RaftFoundation()
-    total_weight = 0.0
-    theta_f = 0.0
-    axial_load_ratio = 0.0
-    bearing_capacity = 0.0
-    theta_pseudo_up = 0.0
-
-    def __init__(self, wb, hz, sl, fd):
-        super(DesignedSFSIRCWall, self).__init__(wb, hz)  # run parent class initialiser function
-        self.sl.__dict__.update(sl.__dict__)
-        self.fd.__dict__.update(fd.__dict__)
-        self.k_f0_shear = geofound.stiffness.calc_shear_via_gazetas_1991(self.sl, self.fd, ip_axis='length')
-
-        if self.fd.ftype == "raft":
-            self.alpha = 4.0
-        else:
-            self.alpha = 3.0
-        self.k_f_0 = geofound.stiffness.calc_rotational_via_gazetas_1991(self.sl, self.fd, ip_axis='length')
-        self.zeta = 1.5
-
-    def static_values(self):
-        self.total_weight = sum(self.storey_n_loads) + self.fd.mass * self.g
-        soil_q = geofound.capacity_salgado_2008(sl=self.sl, fd=self.fd)
-
-        # Deal with both raft and pad foundations
-        self.bearing_capacity = self.fd.area * soil_q
-        self.axial_load_ratio = self.bearing_capacity / self.total_weight
-
-        self.theta_pseudo_up = nf.calculate_pseudo_uplift_angle(self.total_weight, self.fd.width, self.k_f_0,
-                                                                self.axial_load_ratio, self.alpha, self.zeta)
-
-
-def design_wall_to_table(dw, table_name="df-table"):
-    para = mo.output_to_table(dw, olist="all")
-    para += mo.output_to_table(dw.fd)
-    para += mo.output_to_table(dw.sl)
-    para += mo.output_to_table(dw.hz)
-    para = mo.add_table_ends(para, 'latex', table_name, table_name)
-    return para
 
 
 class AssessedSFSIRCFrame(AssessedRCFrame):
@@ -360,7 +191,6 @@ class AssessedSFSIRCFrame(AssessedRCFrame):
         assert fb.material.type == 'rc_material'
         self.concrete = fb.material
 
-
     def static_values(self):
         self.total_weight = (sum(self.storey_masses) + self.fd.mass) * self.g * self.horz2vert_mass
         if hasattr(self.fd, 'pad_length'):
@@ -383,11 +213,3 @@ class AssessedSFSIRCFrame(AssessedRCFrame):
 
         self.theta_pseudo_up = nf.calculate_pseudo_uplift_angle(self.total_weight, self.fd.width, self.k_f_0,
                                                                 self.axial_load_ratio, self.alpha, self.zeta)
-
-def to_table(aw, table_name="af-table"):
-    para = mo.output_to_table(aw, olist="inputs")
-    para += mo.output_to_table(aw.fd, prefix="Foundation ")
-    para += mo.output_to_table(aw.sl, prefix="Soil ")
-    para += mo.output_to_table(aw.hz, prefix="Hazard ")
-    para = mo.add_table_ends(para, 'latex', table_name, table_name)
-    return para

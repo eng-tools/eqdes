@@ -2,6 +2,10 @@
 import numpy as np
 
 import eqdes.dbd.dbd_wall
+import eqdes.models.foundation
+import eqdes.models.hazard
+import eqdes.models.soil
+import eqdes.models.wall_building
 import eqdes.nonlinear_foundation
 from tests import models_for_testing as ml
 from eqdes import dbd
@@ -14,10 +18,10 @@ from tests.checking_tools import isclose
 
 
 def to_be_test_ddbd_sfsi_wall_from_millen_pdf_paper_2018():
-    fb = dm.WallBuilding()
-    sl = dm.Soil()
-    fd = dm.PadFoundation()
-    hz = dm.Hazard()
+    fb = eqdes.models.wall_building.WallBuilding()
+    sl = eqdes.models.soil.Soil()
+    fd = eqdes.models.foundation.PadFoundation()
+    hz = eqdes.models.hazard.Hazard()
     fb.id = 1
     fb.wall_depth = 3.4
     fb.wall_width = 0.3
@@ -83,7 +87,7 @@ def test_case_study_wall_pbd_wall_fixed_base():
     wb.storey_masses = floor_pressure * floor_length * floor_width * np.ones(n_storeys) / 9.8
 
     # hazard
-    hz = dm.Hazard()
+    hz = eqdes.models.hazard.Hazard()
     hz.z_factor = 0.4  # Hazard factor
     hz.r_factor = 1.0  # Return period factor
     hz.n_factor = 1.0  # Near-fault factor
@@ -111,7 +115,7 @@ def test_case_study_wall_pbd_wall_w_sfsi():
     wb.storey_masses = floor_pressure * floor_length * floor_width * np.ones(n_storeys) / 9.8
     wb.storey_n_loads = 9.8 * wb.storey_masses
 
-    fd = dm.RaftFoundation()
+    fd = eqdes.models.foundation.RaftFoundation()
     fd.height = 1.3
     fd.length = 5.6  # m # from HDF
     fd.width = 2.25  # m # from HDF
@@ -119,7 +123,7 @@ def test_case_study_wall_pbd_wall_w_sfsi():
     fd.mass = 0.0
 
     # soil properties from HDF
-    sl = dm.Soil()
+    sl = eqdes.models.soil.Soil()
     sl.g_mod = 40e6  # Pa
     sl.poissons_ratio = 0.3
     sl.phi = 36.0  # degrees
@@ -128,7 +132,7 @@ def test_case_study_wall_pbd_wall_w_sfsi():
     sl.unit_dry_weight = 18000.  # TODO: check this
 
     # hazard
-    hz = dm.Hazard()
+    hz = eqdes.models.hazard.Hazard()
     hz.z_factor = 0.4  # Hazard factor
     hz.r_factor = 1.0  # Return period factor
     hz.n_factor = 1.0  # Near-fault factor
@@ -145,7 +149,11 @@ def test_case_study_wall_pbd_wall_w_sfsi():
 
     wb.material = sm.materials.ReinforcedConcreteMaterial()
     # dw = dbd.wall(wb, hz, design_drift=0.025)
-    dw = eqdes.dbd.design_rc_wall_w_sfsi_via_millen_et_al_2020(wb, hz, sl, fd, design_drift=0.025)
+    dw = eqdes.models.wall_building.DesignedSFSIRCWall(wb, hz, sl, fd)
+    dw.static_dbd_values()
+    print("udw: ", dw.sl.unit_dry_weight)
+    dw.static_values()
+    dw = eqdes.dbd.design_rc_wall_w_sfsi_via_millen_et_al_2020(dw, design_drift=0.025)
     assert np.isclose(dw.delta_d, 0.282773, rtol=0.001), dw.delta_d
     assert np.isclose(dw.v_base, 354451.990, rtol=0.001), dw.v_base
     assert np.isclose(dw.m_base, 4435939.0475, rtol=0.001), dw.m_base
@@ -153,7 +161,7 @@ def test_case_study_wall_pbd_wall_w_sfsi():
 
 def test_ddbd_wall_fixed():
 
-    hz = dm.Hazard()
+    hz = eqdes.models.hazard.Hazard()
     ml.load_hazard_test_data(hz)
     wb = ml.initialise_single_wall_test_data()
     wall_dbd = eqdes.dbd.dbd_wall.design_rc_wall(wb, hz)

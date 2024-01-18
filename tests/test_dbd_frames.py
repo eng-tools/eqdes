@@ -1,6 +1,11 @@
 
 import numpy as np
 
+import eqdes.models.foundation
+import eqdes.models.frame_building
+import eqdes.models.hazard
+import eqdes.models.material
+import eqdes.models.soil
 import eqdes.nonlinear_foundation
 from tests import models_for_testing as ml
 from eqdes import dbd
@@ -14,7 +19,7 @@ from tests.checking_tools import isclose
 
 def test_ddbd_frame_fixed_small():
 
-    hz = dm.Hazard()
+    hz = eqdes.models.hazard.Hazard()
     ml.load_hazard_test_data(hz)
     fb = ml.initialise_frame_building_test_data()
     frame_ddbd = dbd.design_rc_frame(fb, hz)
@@ -36,9 +41,9 @@ def test_ddbd_frame_consistent():
     """
 
     fb = ml.initialise_frame_building_test_data()
-    hz = dm.Hazard()
-    sl = dm.Soil()
-    fd = dm.RaftFoundation()
+    hz = eqdes.models.hazard.Hazard()
+    sl = eqdes.models.soil.Soil()
+    fd = eqdes.models.foundation.RaftFoundation()
     ml.load_hazard_test_data(hz)
     ml.load_soil_test_data(sl)
     ml.load_raft_foundation_test_data(fd)
@@ -61,9 +66,9 @@ def test_ddbd_frame_consistent():
 def test_ddbd_frame_fixed_large():
     n_storeys = 5
     n_bays = 1
-    fb = dm.FrameBuilding(n_storeys, n_bays)
-    fb.material = dm.ReinforcedConcrete()
-    hz = dm.Hazard()
+    fb = eqdes.models.frame_building.FrameBuilding(n_storeys, n_bays)
+    fb.material = eqdes.models.material.ReinforcedConcrete()
+    hz = eqdes.models.hazard.Hazard()
 
     fb.interstorey_heights = 3.6 * np.ones(n_storeys)
 
@@ -94,10 +99,10 @@ def test_ddbd_frame_fixed_large():
 def test_dbd_sfsi_frame_via_millen_et_al_2018():
     n_storeys = 5
     n_bays = 1
-    fb = dm.FrameBuilding(n_storeys, n_bays)
+    fb = eqdes.models.frame_building.FrameBuilding(n_storeys, n_bays)
     fb.n_seismic_frames = 2
     fb.n_gravity_frames = 0
-    fb.material = dm.ReinforcedConcrete()
+    fb.material = eqdes.models.material.ReinforcedConcrete()
     fb.bay_lengths = [5.]
     fb.floor_width = 5.
     fb.floor_length = 5.
@@ -114,7 +119,7 @@ def test_dbd_sfsi_frame_via_millen_et_al_2018():
     fb.set_beam_prop('depth', 0.4, repeat='all')
 
     # Foundation
-    fd = dm.PadFoundation()
+    fd = eqdes.models.foundation.PadFoundation()
     fd.height = 0  # m
     fd.length = 5
     fd.width = 5.
@@ -134,14 +139,14 @@ def test_dbd_sfsi_frame_via_millen_et_al_2018():
 
     # Soil properties
 
-    hz = dm.Hazard()
+    hz = eqdes.models.hazard.Hazard()
     hz.z_factor = 0.3
     hz.r_factor = 1.0
     hz.n_factor = 1.0
     hz.corner_acc_factor = 2.
     hz.corner_period = 1
 
-    sl = dm.Soil()
+    sl = eqdes.models.soil.Soil()
     sl.g_mod = 120e6  # Pa
     sl.poissons_ratio = 0.3  # Poisson's ratio of the soil
     sl.e_curr = 0.6  # %

@@ -1,10 +1,13 @@
+import eqdes.models.frame_building
+import eqdes.models.hazard
+import eqdes.models.material
 from eqdes import dbd
 from eqdes import models as em
 import numpy as np
 import eqdes
 
 def create():
-    hz = em.Hazard()
+    hz = eqdes.models.hazard.Hazard()
     hz.z_factor = 0.3  # Hazard factor
     hz.r_factor = 1.0  # Return period factor
     hz.n_factor = 1.0  # Near-fault factor
@@ -14,8 +17,8 @@ def create():
 
     number_of_storeys = 6
     number_of_bays = 3
-    fb = em.FrameBuilding(n_storeys=number_of_storeys, n_bays=number_of_bays)
-    fb.material = em.ReinforcedConcrete()
+    fb = eqdes.models.frame_building.FrameBuilding(n_storeys=number_of_storeys, n_bays=number_of_bays)
+    fb.material = eqdes.models.material.ReinforcedConcrete()
     interstorey_height = 3.4  # m
     masses = 40.0e3  # kg
 
