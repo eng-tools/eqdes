@@ -98,6 +98,7 @@ def test_case_study_wall_pbd_wall_fixed_base():
     sw.material = sm.materials.ReinforcedConcreteMaterial()
     dw = eqdes.models.wall_building.DispBasedRCWall(sw)
     dw.preferred_bar_diameter = 0.032
+    dw.phi_material = 0.072 / dw.wall_depth  # Eq 6.10b
     dw = eqdes.dbd.dbd_wall.design_rc_wall(dw, hz, design_drift=0.025)
 
 
@@ -153,6 +154,7 @@ def test_case_study_wall_pbd_wall_w_sfsi():
     # dw = dbd.wall(wb, hz, design_drift=0.025)
     dw = eqdes.models.wall_building.DispBasedRCWall(wb, sl=sl, fd=fd)
     dw.preferred_bar_diameter = 0.032
+    dw.phi_material = 0.072 / dw.wall_depth  # Eq 6.10b
     dw.gen_static_values()
     dw = eqdes.dbd.design_rc_wall_w_sfsi_via_millen_et_al_2020(dw, hz, design_drift=0.025)
     assert np.isclose(dw.delta_d, 0.282773, rtol=0.001), dw.delta_d
@@ -167,6 +169,7 @@ def test_ddbd_wall_fixed():
     sw = ml.initialise_single_wall_test_data()
     dw = eqdes.models.wall_building.DispBasedRCWall(sw)
     dw.preferred_bar_diameter = 0.032
+    dw.phi_material = 0.072 / dw.wall_depth  # Eq 6.10b
     wall_dbd = eqdes.dbd.dbd_wall.design_rc_wall(dw, hz)
 
     assert isclose(wall_dbd.delta_d, 0.339295, rel_tol=0.001), wall_dbd.delta_d
@@ -180,4 +183,6 @@ def test_ddbd_wall_fixed():
 
 
 if __name__ == '__main__':
+    print('hello')
+    # test_case_study_wall_pbd_wall_fixed_base()
     test_case_study_wall_pbd_wall_w_sfsi()

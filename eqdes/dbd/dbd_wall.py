@@ -59,7 +59,7 @@ def design_rc_wall(dw, hz, design_drift=0.025, **kwargs):
         displacements = delta_ls * dw.hm_factor
 
         dw.delta_d, dw.mass_eff, dw.height_eff = dt.calc_equivalent_sdof(dw.storey_mass, displacements, dw.heights)
-        delta_y = dt.yield_displacement_wall(phi_y, dw.height_eff, dw.max_height)
+        delta_y = dt.yield_displacements_wall(phi_y, dw.height_eff, dw.max_height)
         dw.mu = dt.ductility(dw.delta_d, delta_y)
         dw.xi = dt.equivalent_viscous_damping(dw.mu, mtype="concrete", btype="wall")
         dw.eta = dt.reduction_factor(dw.xi)
@@ -162,7 +162,7 @@ def design_rc_wall_w_sfsi_via_millen_et_al_2020(dw, hz, design_drift=0.025, mval
         displacements = delta_ls * dw.hm_factor
 
         dw.delta_d, dw.mass_eff, dw.height_eff = dt.calc_equivalent_sdof(storey_mass_p_wall, displacements, heights)
-        delta_y = dt.yield_displacement_wall(phi_y, dw.height_eff, dw.max_height)
+        delta_y = dt.yield_displacements_wall(phi_y, dw.height_eff, dw.max_height)
         dw.mu = dt.ductility(dw.delta_d, delta_y)
         dw.xi = dt.equivalent_viscous_damping(dw.mu, mtype="concrete", btype="wall")
         dw.eta = dt.reduction_factor(dw.xi)

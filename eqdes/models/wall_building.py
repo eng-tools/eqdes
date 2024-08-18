@@ -69,7 +69,7 @@ class DispBasedRCWall(sm.SingleWall):
 
     # outputs
     eval_hz = None
-    phi_material = 0.0
+    phi_material = None
     drift_des = 0.0
     delta_des = None
     delta_cap = None
